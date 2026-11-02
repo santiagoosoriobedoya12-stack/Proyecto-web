@@ -21,6 +21,10 @@ builder.Services.AddScoped<IServicioProducto, ServicioProducto>();
 builder.Services.AddScoped<IRepositorioEmpresa>(_ => new RepositorioEmpresaSqlServer(cadenaConexion));
 builder.Services.AddScoped<IServicioEmpresa, ServicioEmpresa>();
 
+// Registro para Persona
+builder.Services.AddScoped<IRepositorioPersona>(_ => new RepositorioPersonaSqlServer(cadenaConexion));
+builder.Services.AddScoped<IServicioPersona, ServicioPersona>();
+
 // ==============================================================
 // 2. CONFIGURACIÓN DE CONTROLADORES Y RESPUESTA 422 PERSONALIZADA
 // ==============================================================

@@ -30,6 +30,12 @@ builder.Services.AddHttpClient<ServicioEmpresa>(cliente =>
     cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
 });
 
+// Registro para ServicioPersona
+builder.Services.AddHttpClient<ServicioPersona>(cliente =>
+{
+    cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
+});
+
 var app = builder.Build();
 
 // ==============================================================
