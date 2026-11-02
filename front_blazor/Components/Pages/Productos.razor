@@ -1,0 +1,408 @@
+@page "/productos"
+@inject ServicioProducto ServicioProducto
+@rendermode InteractiveServer
+
+<PageTitle>Productos — Sistema de Facturación v1</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Gestión de Productos</h2>
+    <span class="badge bg-secondary">Recurso: /productos</span>
+</div>
+
+<!-- ==============================================================
+     CRITERIO 10: RESILIENCIA ANTE LA CAÍDA DE LA API
+     Si la API está apagada, la interfaz gráfica SIGUE EN PIE, muestra el menú,
+     un aviso de que no se pudo conectar y NI UNA SOLA FILA.
+     ============================================================== -->
+@if (errorConexion)
+{
+    <div class="alert alert-danger aviso-desconexion mb-4 shadow-sm" role="alert">
+        <h4 class="alert-heading">⚠️ Error de conexión con la API</h4>
+        <p class="mb-1">
+            No se pudo establecer comunicación con el servicio de datos en <code>http://api-facturas:8032</code>.
+        </p>
+        <p class="mb-0 text-muted">
+            La interfaz gráfica permanece en pie y operativa. Verifique que el servicio de la API esté corriendo.
+        </p>
+        <button class="btn btn-outline-danger btn-sm mt-3" @onclick="CargarProductos">
+            Reintentar conexión
+        </button>
+    </div>
+}
+
+<!-- Mensajes de éxito o validación en la interfaz gráfica (Criterio 8) -->
+@if (!string.IsNullOrEmpty(mensajeAlerta))
+{
+    <div class="alert @(esExito ? "alert-success" : "alert-warning") alert-dismissible fade show shadow-sm" role="alert">
+        <strong>@(esExito ? "✔ Operación exitosa:" : "⚠️ Atención:")</strong> @mensajeAlerta
+        @if (listaErroresValidacion != null && listaErroresValidacion.Count > 0)
+        {
+            <ul class="mb-0 mt-2">
+                @foreach (var err in listaErroresValidacion)
+                {
+                    <li>@err</li>
+                }
+            </ul>
+        }
+        <button type="button" class="btn-close float-end" @onclick="() => mensajeAlerta = null" aria-label="Cerrar">X</button>
+    </div>
+}
+
+<div class="row">
+    <!-- FORMULARIO DE CREACIÓN / EDICIÓN -->
+    <div class="col-12 col-lg-5 mb-4">
+        <div class="tarjeta">
+            <div class="tarjeta-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold">@(modoEdicion ? "Editar Producto" : "Nuevo Producto")</span>
+                @if (modoEdicion)
+                {
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="CancelarEdicion">
+                        Cancelar edición
+                    </button>
+                }
+            </div>
+            <div class="tarjeta-body">
+                <div class="mb-3">
+                    <label class="form-label">Código del producto</label>
+                    <input type="text" class="form-control" placeholder="Ej: PR009"
+                           @bind="formularioProducto.Codigo"
+                           disabled="@modoEdicion" />
+                    <small class="text-muted">Texto único de 1 a 10 caracteres.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Nombre descriptivo</label>
+                    <input type="text" class="form-control" placeholder="Ej: Teclado Mecánico"
+                           @bind="formularioProducto.Nombre" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Stock (Cantidad)</label>
+                    <input type="number" class="form-control" placeholder="0"
+                           @bind="formularioProducto.Stock" />
+                    <small class="text-muted">Entero mayor o igual a 0.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Valor unitario ($)</label>
+                    <input type="number" step="0.01" class="form-control" placeholder="0.00"
+                           @bind="formularioProducto.Valorunitario" />
+                    <small class="text-muted">Precio unitario en pesos.</small>
+                </div>
+
+                <!-- ==============================================================
+                     CRITERIO 8 Y CRITERIO 9: LOS BOTONES DE ACCIÓN
+                     En edición aparecen DOS botones de guardar que hacen cosas distintas.
+                     La interfaz NUNCA dice PUT, PATCH ni 422 a la persona.
+                     ============================================================== -->
+                <div class="acciones mt-4">
+                    @if (!modoEdicion)
+                    {
+                        <!-- Criterio 8: Crear producto -->
+                        <button class="btn btn-success" @onclick="CrearProducto" disabled="@cargando">
+                            Crear producto
+                        </button>
+                    }
+                    else
+                    {
+                        <!-- Criterio 9 - Botón 1: El PUT (Reemplazo completo) -->
+                        <button class="btn btn-primary" @onclick="GuardarFichaCompleta" disabled="@cargando"
+                                title="Envía todos los campos a la API. Si falta algún dato requerido, la API lo rechazará.">
+                            Guardar la ficha completa
+                        </button>
+
+                        <!-- Criterio 9 - Botón 2: El PATCH (Actualización parcial) -->
+                        <button class="btn btn-secondary" @onclick="GuardarSoloLoCambiado" disabled="@cargando"
+                                title="Envía únicamente los campos que modificó respecto a su valor original.">
+                            Guardar solo lo que cambié
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==============================================================
+         CRITERIO 7: LISTADO DE PRODUCTOS
+         Dirección propia /productos. Muestra los 8 productos iniciales.
+         ============================================================== -->
+    <div class="col-12 col-lg-7 mb-4">
+        <div class="tarjeta">
+            <div class="tarjeta-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold">Inventario de Productos</span>
+                <span class="badge bg-primary">Total: @listaProductos.Count</span>
+            </div>
+            <div class="tarjeta-body p-0">
+                @if (cargando)
+                {
+                    <div class="p-4 text-center text-muted">
+                        <em>Consultando productos desde la API...</em>
+                    </div>
+                }
+                else if (listaProductos.Count == 0 && !errorConexion)
+                {
+                    <div class="p-4 text-center text-muted">
+                        <em>No hay productos registrados en el sistema (HTTP 204).</em>
+                    </div>
+                }
+                else if (!errorConexion)
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nombre</th>
+                                    <th class="text-end">Stock</th>
+                                    <th class="text-end">Valor Unitario</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var prod in listaProductos)
+                                {
+                                    <tr>
+                                        <td><code>@prod.Codigo</code></td>
+                                        <td>@prod.Nombre</td>
+                                        <td class="text-end">@prod.Stock</td>
+                                        <td class="text-end">@prod.Valorunitario.ToString("C0")</td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" @onclick="() => CargarEnEdicion(prod)" title="Editar">
+                                                    Editar
+                                                </button>
+                                                <button class="btn btn-outline-danger" @onclick="() => EliminarProducto(prod.Codigo)" title="Eliminar">
+                                                    Borrar
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Producto> listaProductos = new();
+    private Producto formularioProducto = new();
+    private Producto? productoOriginalEdicion;
+
+    private bool modoEdicion = false;
+    private bool cargando = false;
+    private bool errorConexion = false;
+    private bool esExito = false;
+    private string? mensajeAlerta;
+    private List<string>? listaErroresValidacion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProductos();
+    }
+
+    /// <summary>
+    /// Consulta los productos llamando al servicio.
+    /// Si la API no responde (Criterio 10), activa errorConexion y vacía la tabla.
+    /// </summary>
+    private async Task CargarProductos()
+    {
+        cargando = true;
+        errorConexion = false;
+        try
+        {
+            listaProductos = await ServicioProducto.ListarAsync();
+        }
+        catch
+        {
+            // Criterio 10: Con la API apagada, la pantalla muestra aviso de error y NINGUNA fila.
+            errorConexion = true;
+            listaProductos = new List<Producto>();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    /// <summary>
+    /// Criterio 8: Crea un producto desde la interfaz.
+    /// Si la API lo rechaza (código duplicado, stock negativo),
+    /// el mensaje de error sale en la pantalla y LO ESCRITO NO SE BORRA.
+    /// </summary>
+    private async Task CrearProducto()
+    {
+        cargando = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        var resultado = await ServicioProducto.CrearAsync(formularioProducto);
+
+        if (resultado.Exitoso)
+        {
+            esExito = true;
+            mensajeAlerta = resultado.Mensaje;
+            // Limpiamos el formulario únicamente cuando la creación fue exitosa
+            formularioProducto = new Producto();
+            await CargarProductos();
+        }
+        else
+        {
+            // Criterio 8: Si falló, mostramos el mensaje pero CONSERVAMOS lo escrito por el usuario
+            esExito = false;
+            mensajeAlerta = resultado.Mensaje;
+            listaErroresValidacion = resultado.ErroresValidacion;
+        }
+
+        cargando = false;
+    }
+
+    /// <summary>
+    /// Prepara el formulario para edición cargando los valores del producto seleccionado.
+    /// Guarda una copia del producto original para comparar en el botón de PATCH.
+    /// </summary>
+    private void CargarEnEdicion(Producto prod)
+    {
+        modoEdicion = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        productoOriginalEdicion = new Producto
+        {
+            Codigo = prod.Codigo,
+            Nombre = prod.Nombre,
+            Stock = prod.Stock,
+            Valorunitario = prod.Valorunitario
+        };
+
+        formularioProducto = new Producto
+        {
+            Codigo = prod.Codigo,
+            Nombre = prod.Nombre,
+            Stock = prod.Stock,
+            Valorunitario = prod.Valorunitario
+        };
+    }
+
+    private void CancelarEdicion()
+    {
+        modoEdicion = false;
+        formularioProducto = new Producto();
+        productoOriginalEdicion = null;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+    }
+
+    /// <summary>
+    /// Criterio 9 - Botón «Guardar la ficha completa» (el PUT).
+    /// Envía todos los campos. Si falta alguno, la API responderá con 422.
+    /// </summary>
+    private async Task GuardarFichaCompleta()
+    {
+        cargando = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        var resultado = await ServicioProducto.GuardarFichaCompletaAsync(formularioProducto);
+
+        if (resultado.Exitoso)
+        {
+            esExito = true;
+            mensajeAlerta = resultado.Mensaje;
+            CancelarEdicion();
+            await CargarProductos();
+        }
+        else
+        {
+            esExito = false;
+            mensajeAlerta = resultado.Mensaje;
+            listaErroresValidacion = resultado.ErroresValidacion;
+        }
+
+        cargando = false;
+    }
+
+    /// <summary>
+    /// Criterio 9 - Botón «Guardar solo lo que cambié» (el PATCH).
+    /// Compara los valores actuales con los originales y envía solo las propiedades modificadas.
+    /// </summary>
+    private async Task GuardarSoloLoCambiado()
+    {
+        cargando = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        var cambios = new Dictionary<string, object>();
+
+        if (productoOriginalEdicion != null)
+        {
+            if (formularioProducto.Nombre != productoOriginalEdicion.Nombre)
+                cambios["nombre"] = formularioProducto.Nombre;
+
+            if (formularioProducto.Stock != productoOriginalEdicion.Stock)
+                cambios["stock"] = formularioProducto.Stock;
+
+            if (formularioProducto.Valorunitario != productoOriginalEdicion.Valorunitario)
+                cambios["valorunitario"] = formularioProducto.Valorunitario;
+        }
+
+        if (cambios.Count == 0)
+        {
+            esExito = false;
+            mensajeAlerta = "No se detectaron cambios en el formulario para guardar.";
+            cargando = false;
+            return;
+        }
+
+        var resultado = await ServicioProducto.GuardarSoloLoCambiadoAsync(formularioProducto.Codigo, cambios);
+
+        if (resultado.Exitoso)
+        {
+            esExito = true;
+            mensajeAlerta = resultado.Mensaje;
+            CancelarEdicion();
+            await CargarProductos();
+        }
+        else
+        {
+            esExito = false;
+            mensajeAlerta = resultado.Mensaje;
+            listaErroresValidacion = resultado.ErroresValidacion;
+        }
+
+        cargando = false;
+    }
+
+    /// <summary>
+    /// Elimina un producto por su código.
+    /// </summary>
+    private async Task EliminarProducto(string codigo)
+    {
+        cargando = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        var resultado = await ServicioProducto.EliminarAsync(codigo);
+
+        if (resultado.Exitoso)
+        {
+            esExito = true;
+            mensajeAlerta = resultado.Mensaje;
+            if (modoEdicion && formularioProducto.Codigo == codigo)
+            {
+                CancelarEdicion();
+            }
+            await CargarProductos();
+        }
+        else
+        {
+            esExito = false;
+            mensajeAlerta = resultado.Mensaje;
+        }
+
+        cargando = false;
+    }
+}
