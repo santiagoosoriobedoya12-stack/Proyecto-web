@@ -32,3 +32,4 @@ Cada versión incluye a la anterior de forma acumulativa ($v1 \subset v2 \subset
 ├── docs/              # Documentación, especificaciones y actas de entrega
 └── README.md
 ```
+
