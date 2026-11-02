@@ -14,3 +14,4 @@ public class Producto
     public int Stock { get; set; }
     public decimal Valorunitario { get; set; }
 }
+

@@ -38,3 +38,4 @@ public class ProductoActualizar
         return Nombre != null || Stock.HasValue || Valorunitario.HasValue;
     }
 }
+

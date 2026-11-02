@@ -30,3 +30,4 @@ public class Producto
     /// </summary>
     public decimal Valorunitario { get; set; }
 }
+

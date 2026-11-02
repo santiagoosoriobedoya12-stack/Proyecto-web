@@ -15,9 +15,11 @@ var cadenaConexion = builder.Configuration.GetConnectionString("SqlServer")
 // Registramos el Repositorio pasando la cadena de conexión concreta.
 // El servicio dependerá únicamente de la interfaz IRepositorioProducto.
 builder.Services.AddScoped<IRepositorioProducto>(_ => new RepositorioProductoSqlServer(cadenaConexion));
-
-// Registramos el Servicio de lógica de negocio.
 builder.Services.AddScoped<IServicioProducto, ServicioProducto>();
+
+// Registro para Empresa
+builder.Services.AddScoped<IRepositorioEmpresa>(_ => new RepositorioEmpresaSqlServer(cadenaConexion));
+builder.Services.AddScoped<IServicioEmpresa, ServicioEmpresa>();
 
 // ==============================================================
 // 2. CONFIGURACIÓN DE CONTROLADORES Y RESPUESTA 422 PERSONALIZADA
@@ -89,3 +91,4 @@ app.MapGet("/", () => Results.Ok(new
 app.MapControllers();
 
 app.Run();
+

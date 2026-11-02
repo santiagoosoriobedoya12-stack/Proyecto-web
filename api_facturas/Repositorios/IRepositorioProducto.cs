@@ -48,3 +48,4 @@ public interface IRepositorioProducto
     /// <returns>El número de filas eliminadas.</returns>
     Task<int> EliminarAsync(string codigo);
 }
+

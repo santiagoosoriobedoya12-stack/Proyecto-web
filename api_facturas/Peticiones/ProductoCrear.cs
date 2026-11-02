@@ -43,3 +43,4 @@ public class ProductoCrear
     [Range(0.0, (double)decimal.MaxValue, ErrorMessage = "El campo valorunitario debe ser un número mayor o igual a 0.")]
     public decimal? Valorunitario { get; set; }
 }
+

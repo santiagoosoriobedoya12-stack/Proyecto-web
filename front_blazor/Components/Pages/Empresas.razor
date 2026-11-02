@@ -1,0 +1,298 @@
+@page "/empresas"
+@inject ServicioEmpresa ServicioEmpresa
+@rendermode InteractiveServer
+
+<PageTitle>Empresas — Sistema de Facturación v1</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Gestión de Empresas</h2>
+    <span class="badge bg-secondary">Recurso: /empresas</span>
+</div>
+
+@if (errorConexion)
+{
+    <div class="alert alert-danger aviso-desconexion mb-4 shadow-sm" role="alert">
+        <h4 class="alert-heading">⚠️ Error de conexión con la API</h4>
+        <p class="mb-1">No se pudo establecer comunicación con el servicio en <code>/api/empresa</code>.</p>
+        <button class="btn btn-outline-danger btn-sm mt-3" @onclick="CargarEmpresas">Reintentar conexión</button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(mensajeAlerta))
+{
+    <div class="alert @(esExito ? "alert-success" : "alert-warning") alert-dismissible fade show shadow-sm" role="alert">
+        <strong>@(esExito ? "✔ Operación exitosa:" : "⚠️ Atención:")</strong> @mensajeAlerta
+        @if (listaErroresValidacion != null && listaErroresValidacion.Count > 0)
+        {
+            <ul class="mb-0 mt-2">
+                @foreach (var err in listaErroresValidacion)
+                {
+                    <li>@err</li>
+                }
+            </ul>
+        }
+        <button type="button" class="btn-close float-end" @onclick="() => mensajeAlerta = null">X</button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-12 col-lg-5 mb-4">
+        <div class="tarjeta">
+            <div class="tarjeta-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold">@(modoEdicion ? "Editar Empresa" : "Nueva Empresa")</span>
+                @if (modoEdicion)
+                {
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="CancelarEdicion">Cancelar</button>
+                }
+            </div>
+            <div class="tarjeta-body">
+                <div class="mb-3">
+                    <label class="form-label">Código de la empresa</label>
+                    <input type="text" class="form-control" placeholder="Ej: E001"
+                           @bind="formularioEmpresa.Codigo"
+                           disabled="@modoEdicion" />
+                    <small class="text-muted">Texto único de 1 a 10 caracteres.</small>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Razón social / Nombre</label>
+                    <input type="text" class="form-control" placeholder="Ej: Distribuciones Andinas S.A."
+                           @bind="formularioEmpresa.Nombre" />
+                </div>
+
+                <div class="acciones mt-4">
+                    @if (!modoEdicion)
+                    {
+                        <button class="btn btn-success" @onclick="CrearEmpresa" disabled="@cargando">
+                            Crear empresa
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary" @onclick="GuardarFichaCompleta" disabled="@cargando">
+                            Guardar la ficha completa
+                        </button>
+                        <button class="btn btn-secondary" @onclick="GuardarSoloLoCambiado" disabled="@cargando">
+                            Guardar solo lo que cambié
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-7 mb-4">
+        <div class="tarjeta">
+            <div class="tarjeta-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold">Listado de Empresas</span>
+                <span class="badge bg-primary">Total: @listaEmpresas.Count</span>
+            </div>
+            <div class="tarjeta-body p-0">
+                @if (cargando)
+                {
+                    <div class="p-4 text-center text-muted"><em>Cargando empresas...</em></div>
+                }
+                else if (listaEmpresas.Count == 0 && !errorConexion)
+                {
+                    <div class="p-4 text-center text-muted"><em>No hay empresas registradas (HTTP 204).</em></div>
+                }
+                else if (!errorConexion)
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nombre / Razón Social</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var emp in listaEmpresas)
+                                {
+                                    <tr>
+                                        <td><code>@emp.Codigo</code></td>
+                                        <td>@emp.Nombre</td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" @onclick="() => CargarEnEdicion(emp)">Editar</button>
+                                                <button class="btn btn-outline-danger" @onclick="() => EliminarEmpresa(emp.Codigo)">Borrar</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Empresa> listaEmpresas = new();
+    private Empresa formularioEmpresa = new();
+    private Empresa? empresaOriginalEdicion;
+
+    private bool modoEdicion = false;
+    private bool cargando = false;
+    private bool errorConexion = false;
+    private bool esExito = false;
+    private string? mensajeAlerta;
+    private List<string>? listaErroresValidacion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarEmpresas();
+    }
+
+    private async Task CargarEmpresas()
+    {
+        cargando = true;
+        errorConexion = false;
+        try
+        {
+            listaEmpresas = await ServicioEmpresa.ListarAsync();
+        }
+        catch
+        {
+            errorConexion = true;
+            listaEmpresas = new List<Empresa>();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CrearEmpresa()
+    {
+        cargando = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        var resultado = await ServicioEmpresa.CrearAsync(formularioEmpresa);
+        if (resultado.Exitoso)
+        {
+            esExito = true;
+            mensajeAlerta = resultado.Mensaje;
+            formularioEmpresa = new Empresa();
+            await CargarEmpresas();
+        }
+        else
+        {
+            esExito = false;
+            mensajeAlerta = resultado.Mensaje;
+            listaErroresValidacion = resultado.ErroresValidacion;
+        }
+
+        cargando = false;
+    }
+
+    private void CargarEnEdicion(Empresa emp)
+    {
+        modoEdicion = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        empresaOriginalEdicion = new Empresa { Codigo = emp.Codigo, Nombre = emp.Nombre };
+        formularioEmpresa = new Empresa { Codigo = emp.Codigo, Nombre = emp.Nombre };
+    }
+
+    private void CancelarEdicion()
+    {
+        modoEdicion = false;
+        formularioEmpresa = new Empresa();
+        empresaOriginalEdicion = null;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+    }
+
+    private async Task GuardarFichaCompleta()
+    {
+        cargando = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        var resultado = await ServicioEmpresa.GuardarFichaCompletaAsync(formularioEmpresa);
+        if (resultado.Exitoso)
+        {
+            esExito = true;
+            mensajeAlerta = resultado.Mensaje;
+            CancelarEdicion();
+            await CargarEmpresas();
+        }
+        else
+        {
+            esExito = false;
+            mensajeAlerta = resultado.Mensaje;
+            listaErroresValidacion = resultado.ErroresValidacion;
+        }
+
+        cargando = false;
+    }
+
+    private async Task GuardarSoloLoCambiado()
+    {
+        cargando = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        var cambios = new Dictionary<string, object>();
+        if (empresaOriginalEdicion != null && formularioEmpresa.Nombre != empresaOriginalEdicion.Nombre)
+        {
+            cambios["nombre"] = formularioEmpresa.Nombre;
+        }
+
+        if (cambios.Count == 0)
+        {
+            esExito = false;
+            mensajeAlerta = "No se detectaron cambios para guardar.";
+            cargando = false;
+            return;
+        }
+
+        var resultado = await ServicioEmpresa.GuardarSoloLoCambiadoAsync(formularioEmpresa.Codigo, cambios);
+        if (resultado.Exitoso)
+        {
+            esExito = true;
+            mensajeAlerta = resultado.Mensaje;
+            CancelarEdicion();
+            await CargarEmpresas();
+        }
+        else
+        {
+            esExito = false;
+            mensajeAlerta = resultado.Mensaje;
+            listaErroresValidacion = resultado.ErroresValidacion;
+        }
+
+        cargando = false;
+    }
+
+    private async Task EliminarEmpresa(string codigo)
+    {
+        cargando = true;
+        mensajeAlerta = null;
+
+        var resultado = await ServicioEmpresa.EliminarAsync(codigo);
+        if (resultado.Exitoso)
+        {
+            esExito = true;
+            mensajeAlerta = resultado.Mensaje;
+            if (modoEdicion && formularioEmpresa.Codigo == codigo)
+            {
+                CancelarEdicion();
+            }
+            await CargarEmpresas();
+        }
+        else
+        {
+            esExito = false;
+            mensajeAlerta = resultado.Mensaje;
+        }
+
+        cargando = false;
+    }
+}

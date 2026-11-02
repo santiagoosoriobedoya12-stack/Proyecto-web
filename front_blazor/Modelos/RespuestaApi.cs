@@ -50,3 +50,4 @@ public class ResultadoOperacion
     public string Mensaje { get; set; } = string.Empty;
     public List<string>? ErroresValidacion { get; set; }
 }
+

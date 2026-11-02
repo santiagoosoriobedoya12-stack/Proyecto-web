@@ -24,6 +24,12 @@ builder.Services.AddHttpClient<ServicioProducto>(cliente =>
     cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
 });
 
+// Registro para ServicioEmpresa
+builder.Services.AddHttpClient<ServicioEmpresa>(cliente =>
+{
+    cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
+});
+
 var app = builder.Build();
 
 // ==============================================================
@@ -44,3 +50,4 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 app.Run();
+

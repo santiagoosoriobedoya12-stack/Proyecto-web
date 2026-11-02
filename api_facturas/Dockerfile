@@ -23,3 +23,4 @@ EXPOSE 8032
 # El comando por defecto es 'dotnet watch run':
 # Cada vez que guardes un archivo .cs en tu editor, el proyecto se recompilará solo
 CMD ["dotnet", "watch", "run", "--no-launch-profile"]
+

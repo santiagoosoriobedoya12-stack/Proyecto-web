@@ -17,3 +17,4 @@ public interface IServicioProducto
     Task<int> ActualizarParcialAsync(string codigo, ProductoActualizar peticion);
     Task<int> EliminarAsync(string codigo);
 }
+

@@ -17,3 +17,4 @@ EXPOSE 8096
 
 # Recompila y reinicia la aplicación Blazor al modificar archivos .razor o .cs
 CMD ["dotnet", "watch", "run", "--no-launch-profile"]
+

@@ -116,3 +116,4 @@ public class RepositorioProductoSqlServer : IRepositorioProducto
         return await conexion.ExecuteAsync(sql, new { codigo });
     }
 }
+
