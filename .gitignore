@@ -5,6 +5,13 @@
 *.swp
 *.swo
 
+# Compilados de .NET
+bin/
+obj/
+
+# Sesiones de base de datos
+*.session.sql
+
 # Dependencias y entornos
 node_modules/
 venv/
@@ -18,4 +25,3 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 Thumbs.db
-
