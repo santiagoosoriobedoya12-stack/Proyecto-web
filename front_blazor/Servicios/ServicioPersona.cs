@@ -12,14 +12,34 @@ namespace FrontFacturas.Servicios;
 public class ServicioPersona
 {
     private readonly HttpClient _http;
+    private readonly EstadoSesion _estadoSesion;
 
-    public ServicioPersona(HttpClient http)
+
+    public ServicioPersona(HttpClient http, EstadoSesion estadoSesion)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
+        _estadoSesion = estadoSesion ?? throw new ArgumentNullException(nameof(estadoSesion));
     }
+
+    /// <summary>
+    /// Inyecta el token Bearer en el cliente HTTP si hay una sesión activa en el circuito (Versión 3).
+    /// </summary>
+    private void Autorizar()
+    {
+        if (_estadoSesion.EstaAutenticado)
+        {
+            _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _estadoSesion.Token);
+        }
+        else
+        {
+            _http.DefaultRequestHeaders.Authorization = null;
+        }
+    }
+
 
     public async Task<List<Persona>> ListarAsync(int limite = 1000)
     {
+        Autorizar();
         var respuesta = await _http.GetAsync($"api/persona?limite={limite}");
         if (respuesta.StatusCode == HttpStatusCode.NoContent)
         {
@@ -33,6 +53,7 @@ public class ServicioPersona
 
     public async Task<Persona?> ObtenerPorCodigoAsync(string codigo)
     {
+        Autorizar();
         var respuesta = await _http.GetAsync($"api/persona/{Uri.EscapeDataString(codigo)}");
         if (respuesta.StatusCode == HttpStatusCode.NotFound)
         {
@@ -45,6 +66,7 @@ public class ServicioPersona
 
     public async Task<ResultadoOperacion> CrearAsync(Persona persona)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PostAsJsonAsync("api/persona", new
@@ -70,6 +92,7 @@ public class ServicioPersona
 
     public async Task<ResultadoOperacion> GuardarFichaCompletaAsync(Persona persona)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PutAsJsonAsync($"api/persona/{Uri.EscapeDataString(persona.Codigo)}", new
@@ -94,6 +117,7 @@ public class ServicioPersona
 
     public async Task<ResultadoOperacion> GuardarSoloLoCambiadoAsync(string codigo, Dictionary<string, object> camposModificados)
     {
+        Autorizar();
         try
         {
             var json = JsonSerializer.Serialize(camposModificados);
@@ -116,6 +140,7 @@ public class ServicioPersona
 
     public async Task<ResultadoOperacion> EliminarAsync(string codigo)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.DeleteAsync($"api/persona/{Uri.EscapeDataString(codigo)}");

@@ -16,6 +16,10 @@
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
     <!-- Swashbuckle: Generador de documentación interactiva Swagger UI -->
     <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+    <!-- Microsoft.AspNetCore.Authentication.JwtBearer: Validación y firma de tokens JWT para seguridad v3 -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.10" />
+    <!-- BCrypt.Net-Next: Hashing de contraseñas con factor de costo 12 y salt automática -->
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
   </ItemGroup>
 
   <!-- Aseguramos que los archivos dentro de pruebas no se compilen en este proyecto -->

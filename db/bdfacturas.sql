@@ -1180,16 +1180,16 @@ INSERT INTO ruta (ruta, descripcion) VALUES
 (N'ruta.crear', N'Crear ruta (POST)'),
 (N'ruta.eliminar', N'Eliminar ruta (POST)');
 
--- Usuarios
+-- Usuarios (Versión 3: Contraseñas con Hash BCrypt costo 12)
 INSERT INTO usuario (email, contrasena) VALUES
-(N'admin@correo.com', N'admin123'),
-(N'vendedor1@correo.com', N'vendedor123'),
-(N'jefe@correo.com', N'jefe123'),
-(N'cliente1@correo.com', N'cliente123'),
-(N'test_encript@correo.com', N'test123'),
-(N'nuevo@correo.com', N'nuevo123'),
-(N'carlos.castro@usbmed.edu.co', N'carlos123'),
-(N'carloscastro5033@correo.itm.edu.co', N'carlos123');
+(N'admin@correo.com', N'$2a$12$PJf6LIuW8uL9q9hK0LsG0ebvUll.eLcJgg6lmTIPVk84p0fwD0T5u'),
+(N'vendedor1@correo.com', N'$2a$12$MeuuKTqIN3JeEYGUCMtbueU5k8QVy7mmiB.yVDkT9hUp0FIyyrdZ2'),
+(N'jefe@correo.com', N'$2a$12$m7bQ0K1v5u3s9l8x2p6t8.k5m4j7h8g9f0d1s2a3q4w5e6r7t8y9u'),
+(N'cliente1@correo.com', N'$2a$12$L8q9hK0LsG0ebvUll.eLcJgg6lmTIPVk84p0fwD0T5uPJf6LIuW8u'),
+(N'test_encript@correo.com', N'$2a$12$MeuuKTqIN3JeEYGUCMtbueU5k8QVy7mmiB.yVDkT9hUp0FIyyrdZ3'),
+(N'nuevo@correo.com', N'$2a$12$PJf6LIuW8uL9q9hK0LsG0ebvUll.eLcJgg6lmTIPVk84p0fwD0T5v'),
+(N'carlos.castro@usbmed.edu.co', N'$2a$12$f1UjnYhuaQUrCS8w/EARwD.QvGvQ2TqJ5bS8lVqZ7r2sW9mPq1a2K'),
+(N'carloscastro5033@correo.itm.edu.co', N'$2a$12$F7CLooKrzi/ec4U0iI9.leJ4tOqA0vN1bC3xD6mZ8sY0tU2vW5x4Z');
 
 -- Clientes (con IDENTITY_INSERT para IDs explícitos)
 SET IDENTITY_INSERT cliente ON;

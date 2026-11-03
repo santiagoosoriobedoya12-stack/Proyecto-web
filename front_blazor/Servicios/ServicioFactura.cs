@@ -11,11 +11,30 @@ namespace FrontFacturas.Servicios;
 public class ServicioFactura
 {
     private readonly HttpClient _http;
+    private readonly EstadoSesion _estadoSesion;
 
-    public ServicioFactura(HttpClient http)
+
+    public ServicioFactura(HttpClient http, EstadoSesion estadoSesion)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
+        _estadoSesion = estadoSesion ?? throw new ArgumentNullException(nameof(estadoSesion));
     }
+
+    /// <summary>
+    /// Inyecta el token Bearer en el cliente HTTP si hay una sesión activa en el circuito (Versión 3).
+    /// </summary>
+    private void Autorizar()
+    {
+        if (_estadoSesion.EstaAutenticado)
+        {
+            _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _estadoSesion.Token);
+        }
+        else
+        {
+            _http.DefaultRequestHeaders.Authorization = null;
+        }
+    }
+
 
     /// <summary>
     /// Consulta el listado completo de facturas.
@@ -23,6 +42,7 @@ public class ServicioFactura
     /// </summary>
     public async Task<List<Factura>> ListarAsync()
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.GetAsync("api/factura");
@@ -47,6 +67,7 @@ public class ServicioFactura
     /// </summary>
     public async Task<Factura?> ConsultarAsync(int numero)
     {
+        Autorizar();
         var respuesta = await _http.GetAsync($"api/factura/{numero}");
         if (respuesta.StatusCode == HttpStatusCode.NotFound)
         {
@@ -64,6 +85,7 @@ public class ServicioFactura
     /// </summary>
     public async Task<ResultadoOperacion> EmitirAsync(FacturaCrearDto dto)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PostAsJsonAsync("api/factura", dto);
@@ -92,6 +114,7 @@ public class ServicioFactura
     /// </summary>
     public async Task<ResultadoOperacion> AnularAsync(int numero)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PostAsync($"api/factura/{numero}/anular", null);

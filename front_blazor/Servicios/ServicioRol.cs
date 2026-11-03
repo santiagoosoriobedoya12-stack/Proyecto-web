@@ -12,14 +12,34 @@ namespace FrontFacturas.Servicios;
 public class ServicioRol
 {
     private readonly HttpClient _http;
+    private readonly EstadoSesion _estadoSesion;
 
-    public ServicioRol(HttpClient http)
+
+    public ServicioRol(HttpClient http, EstadoSesion estadoSesion)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
+        _estadoSesion = estadoSesion ?? throw new ArgumentNullException(nameof(estadoSesion));
     }
+
+    /// <summary>
+    /// Inyecta el token Bearer en el cliente HTTP si hay una sesión activa en el circuito (Versión 3).
+    /// </summary>
+    private void Autorizar()
+    {
+        if (_estadoSesion.EstaAutenticado)
+        {
+            _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _estadoSesion.Token);
+        }
+        else
+        {
+            _http.DefaultRequestHeaders.Authorization = null;
+        }
+    }
+
 
     public async Task<List<Rol>> ListarAsync(int limite = 1000)
     {
+        Autorizar();
         var respuesta = await _http.GetAsync($"api/rol?limite={limite}");
         if (respuesta.StatusCode == HttpStatusCode.NoContent)
         {
@@ -33,6 +53,7 @@ public class ServicioRol
 
     public async Task<Rol?> ObtenerPorIdAsync(int id)
     {
+        Autorizar();
         var respuesta = await _http.GetAsync($"api/rol/{id}");
         if (respuesta.StatusCode == HttpStatusCode.NotFound)
         {
@@ -45,6 +66,7 @@ public class ServicioRol
 
     public async Task<ResultadoOperacion> CrearAsync(Rol rol)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PostAsJsonAsync("api/rol", new
@@ -67,6 +89,7 @@ public class ServicioRol
 
     public async Task<ResultadoOperacion> GuardarFichaCompletaAsync(Rol rol)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PutAsJsonAsync($"api/rol/{rol.Id}", new
@@ -89,6 +112,7 @@ public class ServicioRol
 
     public async Task<ResultadoOperacion> GuardarSoloLoCambiadoAsync(int id, Dictionary<string, object> camposModificados)
     {
+        Autorizar();
         try
         {
             var json = JsonSerializer.Serialize(camposModificados);
@@ -111,6 +135,7 @@ public class ServicioRol
 
     public async Task<ResultadoOperacion> EliminarAsync(int id)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.DeleteAsync($"api/rol/{id}");

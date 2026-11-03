@@ -1,127 +1,126 @@
-# Modelo de Datos y Seguridad — Versión 3: Tablas y Procedimiento RBAC
-
-> En la Versión 3 no se altera la estructura de las 12 tablas. Se aprovechan las tablas de seguridad y el procedimiento almacenado que ya existen en `db/bdfacturas.sql`.
-
----
-
-## 1. El Grafo Relacional de Seguridad
-
-```
-   ┌─────────┐
-   │ usuario │ (email, contrasena)
-   └────┬────┘
-        │ 1:N
-        ▼
-   ┌─────────────┐               ┌─────────┐
-   │ rol_usuario │ M:N puente ──►│   rol   │ (id, nombre)
-   └─────────────┘               └────┬────┘
-                                      │ 1:N
-                                      ▼
-   ┌─────────┐                   ┌─────────┐
-   │  ruta   │ ◄── M:N puente ── │ rutarol │
-   └─────────┘                   └─────────┘
-   (id, patron)
-```
-
-### Relaciones:
-1. Un **`usuario`** tiene uno o varios **`roles`** a través de la tabla puente `rol_usuario`.
-2. Un **`rol`** tiene asignadas varias **`rutas`** a través de la tabla puente `rutarol`.
-3. Una **`ruta`** define el patrón de URL que un rol tiene permitido acceder (ej: `/api/factura`, `/api/producto`).
-
----
-
-## 2. Detalle de las Tablas Involucradas
-
-### Tabla `usuario`
-```sql
-CREATE TABLE usuario (
-    email VARCHAR(100) PRIMARY KEY,
-    contrasena VARCHAR(255) NOT NULL -- En v3 almacena el Hash criptográfico con Salt
-);
-```
-
-### Tabla `rol`
-```sql
-CREATE TABLE rol (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    nombre VARCHAR(50) NOT NULL UNIQUE
-);
-```
-
-### Tabla puente `rol_usuario`
-```sql
-CREATE TABLE rol_usuario (
-    fkemail VARCHAR(100) NOT NULL,
-    fkidrol INT NOT NULL,
-    PRIMARY KEY (fkemail, fkidrol),
-    FOREIGN KEY (fkemail) REFERENCES usuario(email) ON DELETE CASCADE,
-    FOREIGN KEY (fkidrol) REFERENCES rol(id) ON DELETE CASCADE
-);
-```
-
-### Tabla `ruta`
-```sql
-CREATE TABLE ruta (
-    id INT IDENTITY(1,1) PRIMARY KEY,
-    patron VARCHAR(200) NOT NULL UNIQUE,
-    descripcion VARCHAR(255) NULL
-);
-```
-
-### Tabla puente `rutarol`
-```sql
-CREATE TABLE rutarol (
-    fkidruta INT NOT NULL,
-    fkidrol INT NOT NULL,
-    PRIMARY KEY (fkidruta, fkidrol),
-    FOREIGN KEY (fkidruta) REFERENCES ruta(id) ON DELETE CASCADE,
-    FOREIGN KEY (fkidrol) REFERENCES rol(id) ON DELETE CASCADE
-);
-```
-
----
-
-## 3. El Procedimiento Almacenado de Verificación (`verificar_acceso_ruta`)
-
-Este procedimiento almacenado se encuentra compilado en SQL Server y constituye el corazón del control de acceso dinámico:
-
-```sql
-CREATE OR ALTER PROCEDURE verificar_acceso_ruta
-    @email VARCHAR(100),
-    @ruta VARCHAR(200),
-    @tiene_acceso BIT OUTPUT
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    -- Si el usuario es Administrador (Rol id = 1 o nombre = 'Administrador'), acceso total
-    IF EXISTS (
-        SELECT 1 
-        FROM rol_usuario ru 
-        INNER JOIN rol r ON ru.fkidrol = r.id 
-        WHERE ru.fkemail = @email AND (r.id = 1 OR r.nombre = 'Administrador')
-    )
-    BEGIN
-        SET @tiene_acceso = 1;
-        RETURN;
-    END
-
-    -- Para los demás roles, verifica si alguno tiene asignada la ruta solicitada
-    IF EXISTS (
-        SELECT 1
-        FROM rol_usuario ru
-        INNER JOIN rutarol rr ON ru.fkidrol = rr.fkidrol
-        INNER JOIN ruta rt ON rr.fkidruta = rt.id
-        WHERE ru.fkemail = @email 
-          AND (@ruta LIKE rt.patron OR rt.patron = @ruta)
-    )
-    BEGIN
-        SET @tiene_acceso = 1;
-    END
-    ELSE
-    BEGIN
-        SET @tiene_acceso = 0;
-    END
-END;
-```
-
+# Modelo de datos — Versión 3: las tablas del acceso (ya existen)
+
+> **La v3 no crea ni modifica una sola tabla.** Las cinco tablas del control de
+> acceso están en la base desde la v1, y su CRUD se construyó en la v1 y la v2.
+>
+> Lo único que cambia en la base es **la semilla de `usuario`**: sus
+> contraseñas se vuelven a sembrar con hash.
+
+---
+
+## 1. Las cinco tablas, y qué pregunta responde cada una
+
+| Tabla | Qué guarda | Su CRUD es de |
+|---|---|---|
+| `usuario` | Las personas que entran, con su contraseña **con hash** | **v1** |
+| `rol` | Los roles | **v1** |
+| `ruta` | Las interfaces y acciones **protegibles** | **v1** |
+| `rol_usuario` | **Quién tiene qué rol** (puente usuario ↔ rol) | **v2** |
+| `rutarol` | **Qué rol entra a qué interfaz** (puente rol ↔ ruta) | **v2** |
+
+```
+   PERSONA  ────────►  ROL  ────────►  PERMISO
+   usuario           rol            ruta
+        └ rol_usuario ┘  └ rutarol ──┘
+```
+
+**Eso es RBAC** (*Role-Based Access Control*): los permisos no se le dan a las
+personas sino **a los roles**, y las personas se ponen en roles.
+
+> **Por qué no permiso directo a la persona:** porque con cincuenta empleados y
+> quince interfaces hay **750** decisiones que mantener. Con roles hay quince,
+> y entra alguien nuevo asignándole uno.
+
+## 2. Lo que la v3 cambia en la base: la semilla
+
+**Dos problemas, y el segundo es el que impedía cerrar la versión:**
+
+| | |
+|---|---|
+| **1** | Dos de las ocho filas tenían la contraseña **en texto plano** |
+| **2** | Las otras seis tenían hash, **y nadie sabía de qué**. Un hash va en una sola dirección: del hash no se vuelve a la clave. **Sin saberlas no hay forma de iniciar sesión** — y sin iniciar sesión no se comprueba un solo criterio |
+
+Las ocho se vuelven a sembrar con bcrypt costo 12, **de contraseñas escritas en
+[7_quickstart.md](7_quickstart.md)**.
+
+> **Y va EN EL SCRIPT, no a mano.** El siguiente `docker compose down -v`
+> vuelve a sembrar, y un cambio hecho a mano se perdería.
+
+### La columna, que ya estaba lista
+
+```sql
+contrasena VARCHAR(200)
+```
+
+**200 y no 20**, precisamente porque un hash de bcrypt ocupa **60** caracteres.
+El tamaño de la columna ya anticipaba esta versión.
+
+## 3. `verificar_acceso_ruta` — el procedimiento que por fin se usa
+
+```sql
+-- en db/bdfacturas.sql
+SELECT EXISTS(
+    SELECT 1
+    FROM usuario u
+    INNER JOIN rol_usuario ur ON u.email    = ur.fkemail
+    INNER JOIN rutarol     rr ON ur.fkidrol = rr.fkidrol
+    WHERE u.email = p_email AND rr.fkidruta = p_fkidruta
+)
+```
+
+**Tres `JOIN` que recorren `persona → rol → permiso`**, y devuelve un JSON con
+`tiene_acceso`.
+
+| | |
+|---|---|
+| **Recibe el ID de la ruta, no su nombre** | Así que hay un paso antes: traducir `interfaz.usuarios` al id. Lo hace el repositorio, con un `SELECT id FROM ruta WHERE ruta = @nombre` |
+| **Si la ruta no está en la tabla, NADIE entra** | Y es lo correcto: una ruta que no se declaró no se concedió. **Fallar cerrado, no abierto** |
+
+> **Estaba ahí desde el primer día, sin que nadie lo llamara.** Eso es lo que
+> cambia en la v3: no se agrega una tabla, **se empieza a preguntar**.
+
+## 4. Los valores sembrados: los permisos, tal como están
+
+### Las 15 rutas
+
+```
+interfaz.inicio      interfaz.usuarios    interfaz.facturas    interfaz.clientes
+interfaz.vendedores  interfaz.personas    interfaz.empresas    interfaz.productos
+interfaz.roles       interfaz.permisos    interfaz.rutas
+permiso.crear        permiso.eliminar     ruta.crear           ruta.eliminar
+```
+
+> **Los nombres llevan PUNTO y no barra** —`interfaz.productos`, no
+> `/productos`— y es deliberado: con barra se confunden con los endpoints de la
+> API, que son otra cosa. Estos son **interfaces y acciones protegibles**.
+
+### Los cinco roles, y a qué entra cada uno
+
+| Rol | Entra a |
+|---|---|
+| **Administrador** | **las 15** |
+| **Vendedor** | inicio · facturas · clientes |
+| **Cajero** | inicio · facturas |
+| **Contador** | inicio · clientes · productos |
+| **Cliente** | inicio · productos |
+
+### Los tres usuarios con los que se prueba
+
+| Correo | Rol | Sirve para |
+|---|---|---|
+| `admin@correo.com` | Administrador | Que todo responda **200** |
+| `vendedor1@correo.com` | Vendedor + Cajero | **El 403**: pedir `/api/usuario` con su token |
+| `cliente1@correo.com` | Cliente | **El contraste**: entra a productos y no a clientes, al revés que el vendedor |
+
+> **Con esos tres el criterio 9 es demostrable**, y es el que no se puede
+> simular: identificarse como `vendedor1` y **escribir la dirección a mano**.
+> Tiene que responder **403**.
+
+## 5. La v3 NO agrega tablas, y conviene decirlo tres veces
+
+| Lo que se podría creer que hace falta | Por qué no |
+|---|---|
+| Una tabla `sesion` | El token **no se guarda**: está firmado y se valida con la clave. Guardarlo sería tener estado que no hace falta |
+| Una tabla `intentos_fallidos` | Bloquear tras N intentos es un requisito real que **el curso no plantea** |
+| Una tabla `auditoria` | Ídem |
+| Una columna `salt` en `usuario` | **bcrypt lo trae dentro del propio hash.** Los 29 primeros caracteres de `$2a$12$…` son la variante, el costo y el salt |

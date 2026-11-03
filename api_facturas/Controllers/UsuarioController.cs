@@ -1,6 +1,8 @@
+using ApiFacturas.Autorizacion;
 using ApiFacturas.Excepciones;
 using ApiFacturas.Peticiones;
 using ApiFacturas.Servicios;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 
@@ -10,9 +12,12 @@ namespace ApiFacturas.Controllers;
 /// Controlador HTTP para el recurso 'usuario' (/api/usuario).
 /// Clave primaria: email (string).
 /// Nunca expone las contraseñas en las respuestas.
+/// Protegido con [Authorize] y [ExigePermiso("interfaz.usuarios")].
 /// </summary>
 [ApiController]
 [Route("api/usuario")]
+[Authorize]
+[ExigePermiso("interfaz.usuarios")]
 public class UsuarioController : ControllerBase
 {
     private readonly IServicioUsuario _servicio;

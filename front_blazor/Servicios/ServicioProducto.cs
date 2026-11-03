@@ -16,11 +16,30 @@ namespace FrontFacturas.Servicios;
 public class ServicioProducto
 {
     private readonly HttpClient _http;
+    private readonly EstadoSesion _estadoSesion;
 
-    public ServicioProducto(HttpClient http)
+
+    public ServicioProducto(HttpClient http, EstadoSesion estadoSesion)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
+        _estadoSesion = estadoSesion ?? throw new ArgumentNullException(nameof(estadoSesion));
     }
+
+    /// <summary>
+    /// Inyecta el token Bearer en el cliente HTTP si hay una sesión activa en el circuito (Versión 3).
+    /// </summary>
+    private void Autorizar()
+    {
+        if (_estadoSesion.EstaAutenticado)
+        {
+            _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _estadoSesion.Token);
+        }
+        else
+        {
+            _http.DefaultRequestHeaders.Authorization = null;
+        }
+    }
+
 
     /// <summary>
     /// Consulta el listado de productos llamando a GET /api/producto?limite={limite}.
@@ -29,6 +48,7 @@ public class ServicioProducto
     /// </summary>
     public async Task<List<Producto>> ListarAsync(int limite = 1000)
     {
+        Autorizar();
         var respuesta = await _http.GetAsync($"api/producto?limite={limite}");
 
         // Criterio C1: Si la tabla está vacía, la API responde 204 No Content
@@ -48,6 +68,7 @@ public class ServicioProducto
     /// </summary>
     public async Task<Producto?> ObtenerPorCodigoAsync(string codigo)
     {
+        Autorizar();
         var respuesta = await _http.GetAsync($"api/producto/{Uri.EscapeDataString(codigo)}");
         if (respuesta.StatusCode == HttpStatusCode.NotFound)
         {
@@ -65,6 +86,7 @@ public class ServicioProducto
     /// </summary>
     public async Task<ResultadoOperacion> CrearAsync(Producto producto)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PostAsJsonAsync("api/producto", new
@@ -103,6 +125,7 @@ public class ServicioProducto
     /// </summary>
     public async Task<ResultadoOperacion> GuardarFichaCompletaAsync(Producto producto)
     {
+        Autorizar();
         try
         {
             var cuerpo = new
@@ -141,6 +164,7 @@ public class ServicioProducto
     /// </summary>
     public async Task<ResultadoOperacion> GuardarSoloLoCambiadoAsync(string codigo, Dictionary<string, object> camposModificados)
     {
+        Autorizar();
         try
         {
             var json = JsonSerializer.Serialize(camposModificados);
@@ -174,6 +198,7 @@ public class ServicioProducto
     /// </summary>
     public async Task<ResultadoOperacion> EliminarAsync(string codigo)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.DeleteAsync($"api/producto/{Uri.EscapeDataString(codigo)}");

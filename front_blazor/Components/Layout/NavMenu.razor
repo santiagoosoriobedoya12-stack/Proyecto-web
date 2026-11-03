@@ -1,51 +1,120 @@
+@inject FrontFacturas.Servicios.EstadoSesion EstadoSesion
+@implements IDisposable
+
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
     <div class="container-fluid">
-        <a class="navbar-brand" href="/">Sistema Facturas <span class="badge bg-primary">v2</span></a>
-        <div class="d-flex flex-wrap gap-2">
-            <NavLink class="nav-link text-white" href="" Match="NavLinkMatch.All">
-                Inicio
-            </NavLink>
-            <NavLink class="nav-link text-white" href="productos">
-                Productos
-            </NavLink>
-            <NavLink class="nav-link text-white" href="empresas">
-                Empresas
-            </NavLink>
-            <NavLink class="nav-link text-white" href="personas">
-                Personas
-            </NavLink>
-            <NavLink class="nav-link text-white" href="roles">
-                Roles
-            </NavLink>
-            <NavLink class="nav-link text-white" href="rutas">
-                Rutas
-            </NavLink>
-            <NavLink class="nav-link text-white" href="usuarios">
-                Usuarios
-            </NavLink>
-            <!-- Enlaces de la Versión 2 (Tablas con Clave Foránea) -->
-            <NavLink class="nav-link text-warning fw-semibold" href="clientes">
-                Clientes
-            </NavLink>
-            <NavLink class="nav-link text-warning fw-semibold" href="vendedores">
-                Vendedores
-            </NavLink>
-            <NavLink class="nav-link text-warning fw-semibold" href="facturas">
-                Facturas
-            </NavLink>
-            <NavLink class="nav-link text-warning fw-semibold" href="emitir-factura">
-                Emitir Factura
-            </NavLink>
-            <NavLink class="nav-link text-warning fw-semibold" href="usuarios-y-roles">
-                Usuarios y Roles
-            </NavLink>
-            <NavLink class="nav-link text-warning fw-semibold" href="roles-por-usuario">
-                Roles por Usuario
-            </NavLink>
-            <NavLink class="nav-link text-warning fw-semibold" href="permisos-por-rol">
-                Permisos por Rol
-            </NavLink>
+        <a class="navbar-brand" href="/">Sistema Facturas <span class="badge bg-success">v3</span></a>
+        
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            @if (!EstadoSesion.EstaAutenticado)
+            {
+                <!-- Criterio 8a: Sin identificarse, el menú solo muestra 'Iniciar sesión' -->
+                <NavLink class="nav-link text-white fw-bold bg-primary px-3 py-1 rounded" href="sesion">
+                    Iniciar sesión
+                </NavLink>
+            }
+            else
+            {
+                <NavLink class="nav-link text-white" href="" Match="NavLinkMatch.All">
+                    Inicio
+                </NavLink>
+
+                @if (EstadoSesion.TienePermiso("interfaz.productos"))
+                {
+                    <NavLink class="nav-link text-white" href="productos">
+                        Productos
+                    </NavLink>
+                }
+
+                @if (EstadoSesion.TienePermiso("interfaz.clientes"))
+                {
+                    <NavLink class="nav-link text-warning fw-semibold" href="clientes">
+                        Clientes
+                    </NavLink>
+                }
+
+                @if (EstadoSesion.TienePermiso("interfaz.vendedores"))
+                {
+                    <NavLink class="nav-link text-warning fw-semibold" href="vendedores">
+                        Vendedores
+                    </NavLink>
+                }
+
+                @if (EstadoSesion.TienePermiso("interfaz.facturas"))
+                {
+                    <NavLink class="nav-link text-warning fw-semibold" href="facturas">
+                        Facturas
+                    </NavLink>
+                    <NavLink class="nav-link text-warning fw-semibold" href="emitir-factura">
+                        Emitir Factura
+                    </NavLink>
+                }
+
+                @if (EstadoSesion.TienePermiso("interfaz.personas"))
+                {
+                    <NavLink class="nav-link text-white" href="personas">
+                        Personas
+                    </NavLink>
+                }
+
+                @if (EstadoSesion.TienePermiso("interfaz.empresas"))
+                {
+                    <NavLink class="nav-link text-white" href="empresas">
+                        Empresas
+                    </NavLink>
+                }
+
+                @if (EstadoSesion.TienePermiso("interfaz.roles"))
+                {
+                    <NavLink class="nav-link text-white" href="roles">
+                        Roles
+                    </NavLink>
+                    <NavLink class="nav-link text-warning fw-semibold" href="roles-por-usuario">
+                        Roles por Usuario
+                    </NavLink>
+                }
+
+                @if (EstadoSesion.TienePermiso("interfaz.usuarios"))
+                {
+                    <NavLink class="nav-link text-white" href="usuarios">
+                        Usuarios
+                    </NavLink>
+                    <NavLink class="nav-link text-warning fw-semibold" href="usuarios-y-roles">
+                        Usuarios y Roles
+                    </NavLink>
+                }
+
+                @if (EstadoSesion.TienePermiso("interfaz.rutas"))
+                {
+                    <NavLink class="nav-link text-white" href="rutas">
+                        Rutas
+                    </NavLink>
+                }
+
+                @if (EstadoSesion.TienePermiso("interfaz.permisos"))
+                {
+                    <NavLink class="nav-link text-warning fw-semibold" href="permisos-por-rol">
+                        Permisos por Rol
+                    </NavLink>
+                }
+            }
         </div>
     </div>
 </nav>
 
+@code {
+    protected override void OnInitialized()
+    {
+        EstadoSesion.AlCambiarEstado += Actualizar;
+    }
+
+    private void Actualizar()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        EstadoSesion.AlCambiarEstado -= Actualizar;
+    }
+}

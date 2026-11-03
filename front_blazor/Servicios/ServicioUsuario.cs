@@ -12,14 +12,34 @@ namespace FrontFacturas.Servicios;
 public class ServicioUsuario
 {
     private readonly HttpClient _http;
+    private readonly EstadoSesion _estadoSesion;
 
-    public ServicioUsuario(HttpClient http)
+
+    public ServicioUsuario(HttpClient http, EstadoSesion estadoSesion)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
+        _estadoSesion = estadoSesion ?? throw new ArgumentNullException(nameof(estadoSesion));
     }
+
+    /// <summary>
+    /// Inyecta el token Bearer en el cliente HTTP si hay una sesión activa en el circuito (Versión 3).
+    /// </summary>
+    private void Autorizar()
+    {
+        if (_estadoSesion.EstaAutenticado)
+        {
+            _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _estadoSesion.Token);
+        }
+        else
+        {
+            _http.DefaultRequestHeaders.Authorization = null;
+        }
+    }
+
 
     public async Task<List<Usuario>> ListarAsync(int limite = 1000)
     {
+        Autorizar();
         var respuesta = await _http.GetAsync($"api/usuario?limite={limite}");
         if (respuesta.StatusCode == HttpStatusCode.NoContent)
         {
@@ -33,6 +53,7 @@ public class ServicioUsuario
 
     public async Task<Usuario?> ObtenerPorEmailAsync(string email)
     {
+        Autorizar();
         var respuesta = await _http.GetAsync($"api/usuario/{Uri.EscapeDataString(email)}");
         if (respuesta.StatusCode == HttpStatusCode.NotFound)
         {
@@ -45,6 +66,7 @@ public class ServicioUsuario
 
     public async Task<ResultadoOperacion> CrearAsync(Usuario usuario)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PostAsJsonAsync("api/usuario", new
@@ -68,6 +90,7 @@ public class ServicioUsuario
 
     public async Task<ResultadoOperacion> GuardarFichaCompletaAsync(Usuario usuario)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PutAsJsonAsync($"api/usuario/{Uri.EscapeDataString(usuario.Email)}", new
@@ -90,6 +113,7 @@ public class ServicioUsuario
 
     public async Task<ResultadoOperacion> GuardarSoloLoCambiadoAsync(string email, Dictionary<string, object> camposModificados)
     {
+        Autorizar();
         try
         {
             var json = JsonSerializer.Serialize(camposModificados);
@@ -112,6 +136,7 @@ public class ServicioUsuario
 
     public async Task<ResultadoOperacion> EliminarAsync(string email)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.DeleteAsync($"api/usuario/{Uri.EscapeDataString(email)}");

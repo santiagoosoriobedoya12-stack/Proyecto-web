@@ -7,14 +7,34 @@ namespace FrontFacturas.Servicios;
 public class ServicioRolUsuario
 {
     private readonly HttpClient _http;
+    private readonly EstadoSesion _estadoSesion;
 
-    public ServicioRolUsuario(HttpClient http)
+
+    public ServicioRolUsuario(HttpClient http, EstadoSesion estadoSesion)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
+        _estadoSesion = estadoSesion ?? throw new ArgumentNullException(nameof(estadoSesion));
     }
+
+    /// <summary>
+    /// Inyecta el token Bearer en el cliente HTTP si hay una sesión activa en el circuito (Versión 3).
+    /// </summary>
+    private void Autorizar()
+    {
+        if (_estadoSesion.EstaAutenticado)
+        {
+            _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _estadoSesion.Token);
+        }
+        else
+        {
+            _http.DefaultRequestHeaders.Authorization = null;
+        }
+    }
+
 
     public async Task<List<RolUsuario>> ListarAsync()
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.GetAsync("api/rol-usuario");
@@ -33,6 +53,7 @@ public class ServicioRolUsuario
 
     public async Task<ResultadoOperacion> AsignarAsync(string email, int idRol)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PostAsJsonAsync("api/rol-usuario", new
@@ -54,6 +75,7 @@ public class ServicioRolUsuario
 
     public async Task<ResultadoOperacion> QuitarAsync(string email, int idRol)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.DeleteAsync($"api/rol-usuario/{email}/{idRol}");

@@ -214,6 +214,18 @@
             listaPersonas = await tareaPersonas;
             listaEmpresas = await tareaEmpresas;
         }
+        catch (Exception ex) when (ex is HttpRequestException hex && hex.StatusCode == System.Net.HttpStatusCode.Forbidden || ex.InnerException is HttpRequestException iex && iex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            mensajeAlerta = "Su rol no tiene permiso para esta operacion.";
+            esExito = false;
+            listaClientes = new();
+        }
+        catch (Exception ex) when (ex is HttpRequestException hex && hex.StatusCode == System.Net.HttpStatusCode.Unauthorized || ex.InnerException is HttpRequestException iex && iex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            mensajeAlerta = "No hay una sesion valida. Debe iniciar sesion.";
+            esExito = false;
+            listaClientes = new();
+        }
         catch
         {
             errorConexion = true;

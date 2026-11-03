@@ -65,6 +65,10 @@ services:
       # se resuelven por nombre. Esta variable SOBREESCRIBE el valor de
       # appsettings.json (ASP.NET lee "ConnectionStrings__X" así).
       ConnectionStrings__SqlServer: "Server=sqlserver,1433;Database=bdfacturas_sqlserver_local;User Id=sa;Password=Paradigmas123!;TrustServerCertificate=True;"
+      Jwt__Key: "SuperClaveSecretaUltraSeguraParaFirmarJwtDeFacturas2026*"
+      Jwt__Issuer: "ApiFacturas"
+      Jwt__Audience: "FrontFacturas"
+      Jwt__ExpiracionHoras: "1"
     depends_on:
       sqlserver-init:
         condition: service_completed_successfully

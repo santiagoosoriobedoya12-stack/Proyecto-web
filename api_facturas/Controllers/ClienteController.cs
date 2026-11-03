@@ -1,13 +1,15 @@
+using ApiFacturas.Autorizacion;
 using ApiFacturas.Excepciones;
 using ApiFacturas.Peticiones;
 using ApiFacturas.Servicios;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 
 namespace ApiFacturas.Controllers;
 
 /// <summary>
-/// Controlador HTTP para el recurso 'cliente' (/api/cliente) — Versión 2.
+/// Controlador HTTP para el recurso 'cliente' (/api/cliente) — Versión 2 / Versión 3.
 /// 
 /// Novedades de la Versión 2:
 /// 1. Claves Foráneas: 'fkcodpersona' (obligatoria) y 'fkcodempresa' (opcional).
@@ -17,6 +19,8 @@ namespace ApiFacturas.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/cliente")]
+[Authorize]
+[ExigePermiso("interfaz.clientes")]
 public class ClienteController : ControllerBase
 {
     private readonly IServicioCliente _servicio;

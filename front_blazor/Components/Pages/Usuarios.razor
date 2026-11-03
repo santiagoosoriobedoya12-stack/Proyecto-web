@@ -154,6 +154,19 @@
         {
             listaUsuarios = await ServicioUsuario.ListarAsync();
         }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
+        {
+            // Criterio 9 (Versión 3): Si escribe la URL a mano sin permiso, aviso de 403 y CERO filas
+            mensajeAlerta = "Su rol no tiene permiso para esta operacion.";
+            esExito = false;
+            listaUsuarios = new List<Usuario>();
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            mensajeAlerta = "No hay una sesion valida. Debe iniciar sesion.";
+            esExito = false;
+            listaUsuarios = new List<Usuario>();
+        }
         catch
         {
             errorConexion = true;

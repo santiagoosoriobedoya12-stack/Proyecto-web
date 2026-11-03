@@ -12,14 +12,34 @@ namespace FrontFacturas.Servicios;
 public class ServicioRuta
 {
     private readonly HttpClient _http;
+    private readonly EstadoSesion _estadoSesion;
 
-    public ServicioRuta(HttpClient http)
+
+    public ServicioRuta(HttpClient http, EstadoSesion estadoSesion)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
+        _estadoSesion = estadoSesion ?? throw new ArgumentNullException(nameof(estadoSesion));
     }
+
+    /// <summary>
+    /// Inyecta el token Bearer en el cliente HTTP si hay una sesión activa en el circuito (Versión 3).
+    /// </summary>
+    private void Autorizar()
+    {
+        if (_estadoSesion.EstaAutenticado)
+        {
+            _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _estadoSesion.Token);
+        }
+        else
+        {
+            _http.DefaultRequestHeaders.Authorization = null;
+        }
+    }
+
 
     public async Task<List<Ruta>> ListarAsync(int limite = 1000)
     {
+        Autorizar();
         var respuesta = await _http.GetAsync($"api/ruta?limite={limite}");
         if (respuesta.StatusCode == HttpStatusCode.NoContent)
         {
@@ -33,6 +53,7 @@ public class ServicioRuta
 
     public async Task<Ruta?> ObtenerPorIdAsync(int id)
     {
+        Autorizar();
         var respuesta = await _http.GetAsync($"api/ruta/{id}");
         if (respuesta.StatusCode == HttpStatusCode.NotFound)
         {
@@ -45,6 +66,7 @@ public class ServicioRuta
 
     public async Task<ResultadoOperacion> CrearAsync(Ruta ruta)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PostAsJsonAsync("api/ruta", new
@@ -68,6 +90,7 @@ public class ServicioRuta
 
     public async Task<ResultadoOperacion> GuardarFichaCompletaAsync(Ruta ruta)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PutAsJsonAsync($"api/ruta/{ruta.Id}", new
@@ -91,6 +114,7 @@ public class ServicioRuta
 
     public async Task<ResultadoOperacion> GuardarSoloLoCambiadoAsync(int id, Dictionary<string, object> camposModificados)
     {
+        Autorizar();
         try
         {
             var json = JsonSerializer.Serialize(camposModificados);
@@ -113,6 +137,7 @@ public class ServicioRuta
 
     public async Task<ResultadoOperacion> EliminarAsync(int id)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.DeleteAsync($"api/ruta/{id}");

@@ -88,6 +88,18 @@ builder.Services.AddHttpClient<ServicioUsuarioConRoles>(cliente =>
     cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
 });
 
+// ==============================================================
+// REGISTROS VERSIÓN 3 (SEGURIDAD, SESIÓN Y CONTROL DE ACCESO)
+// ==============================================================
+// EstadoSesion es SCOPED: uno por circuito de usuario conectado (3_plan.md §4.1)
+builder.Services.AddScoped<EstadoSesion>();
+
+// ServicioSesion para consumir POST /api/sesion
+builder.Services.AddHttpClient<ServicioSesion>(cliente =>
+{
+    cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
+});
+
 var app = builder.Build();
 
 // ==============================================================

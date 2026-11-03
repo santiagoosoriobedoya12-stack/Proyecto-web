@@ -11,17 +11,37 @@ namespace FrontFacturas.Servicios;
 public class ServicioRutaRol
 {
     private readonly HttpClient _http;
+    private readonly EstadoSesion _estadoSesion;
 
-    public ServicioRutaRol(HttpClient http)
+
+    public ServicioRutaRol(HttpClient http, EstadoSesion estadoSesion)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
+        _estadoSesion = estadoSesion ?? throw new ArgumentNullException(nameof(estadoSesion));
     }
+
+    /// <summary>
+    /// Inyecta el token Bearer en el cliente HTTP si hay una sesión activa en el circuito (Versión 3).
+    /// </summary>
+    private void Autorizar()
+    {
+        if (_estadoSesion.EstaAutenticado)
+        {
+            _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _estadoSesion.Token);
+        }
+        else
+        {
+            _http.DefaultRequestHeaders.Authorization = null;
+        }
+    }
+
 
     /// <summary>
     /// Consulta todas las asociaciones existentes entre rutas y roles.
     /// </summary>
     public async Task<List<RutaRol>> ListarAsync()
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.GetAsync("api/rutarol");
@@ -44,6 +64,7 @@ public class ServicioRutaRol
     /// </summary>
     public async Task<ResultadoOperacion> AsignarAsync(int idRuta, int idRol)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PostAsJsonAsync("api/rutarol", new
@@ -68,6 +89,7 @@ public class ServicioRutaRol
     /// </summary>
     public async Task<ResultadoOperacion> QuitarAsync(int idRuta, int idRol)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.DeleteAsync($"api/rutarol/{idRuta}/{idRol}");

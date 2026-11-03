@@ -1,0 +1,56 @@
+@inject FrontFacturas.Servicios.EstadoSesion EstadoSesion
+@inject FrontFacturas.Servicios.ServicioSesion ServicioSesion
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light border rounded">
+    @if (EstadoSesion.EstaAutenticado)
+    {
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success">Sesión Activa</span>
+            <strong>@EstadoSesion.Email</strong>
+            <span class="text-muted">(@string.Join(", ", EstadoSesion.Roles))</span>
+        </div>
+        <div>
+            <button class="btn btn-sm btn-outline-danger" @onclick="Cerrar">
+                Cerrar sesión
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-secondary">Sin sesión</span>
+            <span class="text-muted">No te has identificado en el sistema</span>
+        </div>
+        <div>
+            <a href="/sesion" class="btn btn-sm btn-primary">
+                Iniciar sesión
+            </a>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        EstadoSesion.AlCambiarEstado += ActualizarEstado;
+    }
+
+    private void ActualizarEstado()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void Cerrar()
+    {
+        ServicioSesion.CerrarSesion();
+        Navigation.NavigateTo("/sesion");
+    }
+
+    public void Dispose()
+    {
+        EstadoSesion.AlCambiarEstado -= ActualizarEstado;
+    }
+}
+

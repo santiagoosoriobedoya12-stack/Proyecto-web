@@ -55,4 +55,5 @@ En la **Versión 1**, el objetivo fue construir los cimientos arquitectónicos d
 | [6_contracts.md](6_contracts.md) | Especificación OpenAPI/REST de todos los endpoints de la v1 con ejemplos JSON exactos. |
 | [7_quickstart.md](7_quickstart.md) | Guía de arranque rápido con Docker Compose y pruebas con `curl`. |
 | [8_tasks.md](8_tasks.md) | Plan de tareas por fases verificables de construcción de la v1. |
+| [prompts.md](prompts.md) | Bitácora de prompts de IA utilizados para diseñar y construir cada una de las 6 tablas. |
 

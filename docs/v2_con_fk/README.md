@@ -59,4 +59,5 @@ La **Versión 2** completa el modelo relacional de la empresa introduciendo tres
 | [6_contracts.md](6_contracts.md) | Contratos OpenAPI / REST con cuerpos JSON de petición y respuesta para todos los nuevos endpoints. |
 | [7_quickstart.md](7_quickstart.md) | Guía de arranque rápido, comandos `curl` de prueba y protocolo de regresión de la v1. |
 | [8_tasks.md](8_tasks.md) | Desglose por fases de construcción (Fase 0 a Fase 6) con verificación de cada componente. |
+| [prompts.md](prompts.md) | Bitácora de prompts de IA utilizados para diseñar y construir cada una de las 6 tablas dependientes. |
 

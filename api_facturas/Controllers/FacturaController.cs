@@ -1,7 +1,9 @@
 using System.Text.Json;
+using ApiFacturas.Autorizacion;
 using ApiFacturas.Excepciones;
 using ApiFacturas.Peticiones;
 using ApiFacturas.Servicios;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 
@@ -10,14 +12,17 @@ namespace ApiFacturas.Controllers;
 /// <summary>
 /// Controlador HTTP para el recurso Maestro-Detalle 'factura' (/api/factura).
 /// 
-/// CARACTERÍSTICAS DE LA VERSIÓN 2 (RF3):
+/// CARACTERÍSTICAS DE LA VERSIÓN 2 (RF3) Y VERSIÓN 3:
 /// 1. Cuatro operaciones exclusivas: Listar, Consultar una, Crear y Anular.
 /// 2. Todas operadas 100% mediante Procedimientos Almacenados.
 /// 3. Sin DELETE físico en la API: la regla del negocio es la anulación lógica.
 /// 4. Subtotales, Total y Stock gestionados automáticamente por el motor de base de datos.
+/// 5. Protección con Token JWT y permiso 'interfaz.facturas'.
 /// </summary>
 [ApiController]
 [Route("api/factura")]
+[Authorize]
+[ExigePermiso("interfaz.facturas")]
 public class FacturaController : ControllerBase
 {
     private readonly IServicioFactura _servicio;

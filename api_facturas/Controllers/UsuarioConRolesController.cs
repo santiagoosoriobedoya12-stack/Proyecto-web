@@ -1,6 +1,8 @@
+using ApiFacturas.Autorizacion;
 using ApiFacturas.Excepciones;
 using ApiFacturas.Peticiones;
 using ApiFacturas.Servicios;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 
@@ -8,15 +10,12 @@ namespace ApiFacturas.Controllers;
 
 /// <summary>
 /// Controlador HTTP para el recurso compuesto 'api/usuario-con-roles' (RF5).
-/// 
-/// Características:
-/// 1. Opera usuario Y sus roles de forma atómica en una sola petición.
-/// 2. Utiliza los 5 procedimientos almacenados de bdfacturas.
-/// 3. La contraseña vacía en edición significa 'déjela como está'.
-/// 4. Los roles se reemplazan completamente.
+/// Protegido con [Authorize] y [ExigePermiso("interfaz.usuarios")].
 /// </summary>
 [ApiController]
 [Route("api/usuario-con-roles")]
+[Authorize]
+[ExigePermiso("interfaz.usuarios")]
 public class UsuarioConRolesController : ControllerBase
 {
     private readonly IServicioUsuarioConRoles _servicio;

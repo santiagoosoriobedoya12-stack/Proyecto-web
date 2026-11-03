@@ -11,11 +11,30 @@ namespace FrontFacturas.Servicios;
 public class ServicioUsuarioConRoles
 {
     private readonly HttpClient _http;
+    private readonly EstadoSesion _estadoSesion;
 
-    public ServicioUsuarioConRoles(HttpClient http)
+
+    public ServicioUsuarioConRoles(HttpClient http, EstadoSesion estadoSesion)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
+        _estadoSesion = estadoSesion ?? throw new ArgumentNullException(nameof(estadoSesion));
     }
+
+    /// <summary>
+    /// Inyecta el token Bearer en el cliente HTTP si hay una sesión activa en el circuito (Versión 3).
+    /// </summary>
+    private void Autorizar()
+    {
+        if (_estadoSesion.EstaAutenticado)
+        {
+            _http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _estadoSesion.Token);
+        }
+        else
+        {
+            _http.DefaultRequestHeaders.Authorization = null;
+        }
+    }
+
 
     /// <summary>
     /// Consulta la lista de usuarios junto con los roles que tienen asociados.
@@ -23,6 +42,7 @@ public class ServicioUsuarioConRoles
     /// </summary>
     public async Task<List<UsuarioConRoles>> ListarAsync()
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.GetAsync("api/usuario-con-roles");
@@ -46,6 +66,7 @@ public class ServicioUsuarioConRoles
     /// </summary>
     public async Task<UsuarioConRoles?> ConsultarAsync(string email)
     {
+        Autorizar();
         var respuesta = await _http.GetAsync($"api/usuario-con-roles/{email}");
         if (respuesta.StatusCode == HttpStatusCode.NotFound)
             return null;
@@ -59,6 +80,7 @@ public class ServicioUsuarioConRoles
     /// </summary>
     public async Task<ResultadoOperacion> CrearAsync(string email, string contrasena, List<int> roles)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PostAsJsonAsync("api/usuario-con-roles", new
@@ -88,6 +110,7 @@ public class ServicioUsuarioConRoles
     /// </summary>
     public async Task<ResultadoOperacion> ActualizarAsync(string email, string? contrasena, List<int> roles)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.PutAsJsonAsync($"api/usuario-con-roles/{email}", new
@@ -112,6 +135,7 @@ public class ServicioUsuarioConRoles
     /// </summary>
     public async Task<ResultadoOperacion> EliminarAsync(string email)
     {
+        Autorizar();
         try
         {
             var respuesta = await _http.DeleteAsync($"api/usuario-con-roles/{email}");

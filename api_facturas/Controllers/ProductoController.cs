@@ -1,6 +1,8 @@
+using ApiFacturas.Autorizacion;
 using ApiFacturas.Excepciones;
 using ApiFacturas.Peticiones;
 using ApiFacturas.Servicios;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 
@@ -18,6 +20,8 @@ namespace ApiFacturas.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/producto")]
+[Authorize]
+[ExigePermiso("interfaz.productos")]
 public class ProductoController : ControllerBase
 {
     private readonly IServicioProducto _servicio;

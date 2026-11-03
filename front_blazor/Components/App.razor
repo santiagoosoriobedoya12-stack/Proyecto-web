@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sistema de Facturas — v1</title>
+    <title>Sistema de Facturas — Versión 3 (Control de Acceso)</title>
     <base href="/" />
     <!-- 1. Bootstrap servido LOCALMENTE (sin CDN) -->
     <link rel="stylesheet" href="lib/bootstrap/css/bootstrap.min.css" />
@@ -12,7 +12,7 @@
     <HeadOutlet />
 </head>
 <body>
-    <Routes />
+    <Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
     <script src="_framework/blazor.web.js"></script>
 </body>
 </html>

@@ -1,6 +1,8 @@
+using ApiFacturas.Autorizacion;
 using ApiFacturas.Excepciones;
 using ApiFacturas.Peticiones;
 using ApiFacturas.Servicios;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 
@@ -11,6 +13,8 @@ namespace ApiFacturas.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/empresa")]
+[Authorize]
+[ExigePermiso("interfaz.empresas")]
 public class EmpresaController : ControllerBase
 {
     private readonly IServicioEmpresa _servicio;
