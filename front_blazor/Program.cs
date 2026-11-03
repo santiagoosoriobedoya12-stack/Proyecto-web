@@ -42,6 +42,52 @@ builder.Services.AddHttpClient<ServicioRol>(cliente =>
     cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
 });
 
+// Registro para ServicioRuta
+builder.Services.AddHttpClient<ServicioRuta>(cliente =>
+{
+    cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
+});
+
+// Registro para ServicioUsuario
+builder.Services.AddHttpClient<ServicioUsuario>(cliente =>
+{
+    cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
+});
+
+// ==============================================================
+// REGISTROS VERSIÓN 2 (TABLAS CON CLAVE FORÁNEA)
+// ==============================================================
+
+builder.Services.AddHttpClient<ServicioCliente>(cliente =>
+{
+    cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
+});
+
+builder.Services.AddHttpClient<ServicioVendedor>(cliente =>
+{
+    cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
+});
+
+builder.Services.AddHttpClient<ServicioFactura>(cliente =>
+{
+    cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
+});
+
+builder.Services.AddHttpClient<ServicioRolUsuario>(cliente =>
+{
+    cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
+});
+
+builder.Services.AddHttpClient<ServicioRutaRol>(cliente =>
+{
+    cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
+});
+
+builder.Services.AddHttpClient<ServicioUsuarioConRoles>(cliente =>
+{
+    cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
+});
+
 var app = builder.Build();
 
 // ==============================================================

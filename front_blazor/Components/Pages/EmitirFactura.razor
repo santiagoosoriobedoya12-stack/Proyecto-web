@@ -1,0 +1,327 @@
+@page "/emitir-factura"
+@page "/facturas/nueva"
+@inject ServicioFactura ServicioFactura
+@inject ServicioCliente ServicioCliente
+@inject ServicioVendedor ServicioVendedor
+@inject ServicioProducto ServicioProducto
+@inject ServicioPersona ServicioPersona
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Emitir Factura — Sistema de Facturación v2</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>Emitir Factura</h2>
+        <span class="badge bg-primary">Maestro-Detalle (RF8 · 3_plan.md 3.5)</span>
+    </div>
+    <a href="/facturas" class="btn btn-outline-secondary">
+        &larr; Volver al Historial
+    </a>
+</div>
+
+@if (!string.IsNullOrEmpty(mensajeAlerta))
+{
+    <div class="alert @(esExito ? "alert-success" : "alert-warning") alert-dismissible fade show shadow-sm" role="alert">
+        <strong>@(esExito ? "✔ Éxito:" : "⚠️ Atención:")</strong> @mensajeAlerta
+        @if (listaErroresValidacion != null && listaErroresValidacion.Count > 0)
+        {
+            <ul class="mb-0 mt-2">
+                @foreach (var err in listaErroresValidacion)
+                {
+                    <li>@err</li>
+                }
+            </ul>
+        }
+        <button type="button" class="btn-close float-end" @onclick="() => mensajeAlerta = null">X</button>
+    </div>
+}
+
+<div class="row">
+    <!-- Columna Izquierda: Encabezado y Selección de Productos -->
+    <div class="col-12 col-lg-5 mb-4">
+        <div class="tarjeta mb-4">
+            <div class="tarjeta-header">
+                <span class="fw-bold">1. Encabezado de Factura</span>
+            </div>
+            <div class="tarjeta-body">
+                <div class="mb-3">
+                    <label class="form-label">Cliente (FK Obligatoria)</label>
+                    <select class="form-select" @bind="clienteSeleccionadoId">
+                        <option value="0">-- Seleccione un Cliente --</option>
+                        @foreach (var c in listaClientes)
+                        {
+                            <option value="@c.Id">Cliente #@c.Id — @ObtenerNombrePersona(c.Fkcodpersona)</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Vendedor (FK Obligatoria)</label>
+                    <select class="form-select" @bind="vendedorSeleccionadoId">
+                        <option value="0">-- Seleccione un Vendedor --</option>
+                        @foreach (var v in listaVendedores)
+                        {
+                            <option value="@v.Id">Vendedor #@v.Id — @ObtenerNombrePersona(v.Fkcodpersona) (Carnet: @v.Carnet)</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="tarjeta">
+            <div class="tarjeta-header">
+                <span class="fw-bold">2. Agregar Productos al Detalle</span>
+            </div>
+            <div class="tarjeta-body">
+                <div class="mb-3">
+                    <label class="form-label">Seleccionar Producto</label>
+                    <select class="form-select" @bind="productoSeleccionadoCodigo">
+                        <option value="">-- Seleccione un Producto --</option>
+                        @foreach (var p in listaProductos)
+                        {
+                            <option value="@p.Codigo">@p.Nombre (@p.Codigo) — Stock: @p.Stock — @p.Valorunitario.ToString("C0")</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Cantidad a Facturar</label>
+                    <input type="number" min="1" class="form-control" @bind="cantidadSeleccionada" />
+                </div>
+
+                <button class="btn btn-outline-primary w-100" @onclick="AgregarRenglonMemoria">
+                    + Agregar Renglón
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Columna Derecha: Renglones en Memoria (Criterios 13 y 14) -->
+    <div class="col-12 col-lg-7">
+        <div class="tarjeta">
+            <div class="tarjeta-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold">Renglones de la Factura (En Memoria)</span>
+                <span class="badge bg-secondary">@renglonesEnMemoria.Count renglón(es)</span>
+            </div>
+            <div class="tarjeta-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Código</th>
+                                <th>Descripción</th>
+                                <th class="text-center">Cantidad</th>
+                                <th class="text-end">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (renglonesEnMemoria.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-5">
+                                        No hay productos agregados a la factura todavía.<br />
+                                        <small>Seleccione un producto a la izquierda y haga clic en "Agregar Renglón".</small>
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var r in renglonesEnMemoria)
+                                {
+                                    <tr>
+                                        <td><code>@r.Codigo</code></td>
+                                        <td>@r.Nombre</td>
+                                        <td class="text-center"><strong>@r.Cantidad</strong></td>
+                                        <td class="text-end">
+                                            <!-- Criterio 13: Agregar 3, quitar 1, emitir -> llegan 2 -->
+                                            <button class="btn btn-outline-danger btn-sm" @onclick="() => QuitarRenglonMemoria(r.Codigo)">
+                                                Quitar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="tarjeta-footer p-3 bg-light border-top">
+                <div class="alert alert-info py-2 mb-3">
+                    <small>
+                        ℹ️ <strong>Criterio de Aceptación 14:</strong> El JSON de emisión NO lleva 'total' ni 'subtotal'. La base de datos es la única fuente de verdad transaccional.
+                    </small>
+                </div>
+
+                <button class="btn btn-success w-100 py-2 fs-5 fw-bold"
+                        @onclick="EmitirFacturaSubmit"
+                        disabled="@(renglonesEnMemoria.Count == 0 || clienteSeleccionadoId == 0 || vendedorSeleccionadoId == 0)">
+                    Emitir Factura (Transacción Atómica)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Cliente> listaClientes = new();
+    private List<Vendedor> listaVendedores = new();
+    private List<Producto> listaProductos = new();
+    private List<Persona> listaPersonas = new();
+
+    private int clienteSeleccionadoId = 0;
+    private int vendedorSeleccionadoId = 0;
+
+    private string productoSeleccionadoCodigo = string.Empty;
+    private int cantidadSeleccionada = 1;
+
+    private class RenglonMemoria
+    {
+        public string Codigo { get; set; } = string.Empty;
+        public string Nombre { get; set; } = string.Empty;
+        public int Cantidad { get; set; }
+    }
+
+    private List<RenglonMemoria> renglonesEnMemoria = new();
+
+    private string? mensajeAlerta;
+    private bool esExito = false;
+    private List<string>? listaErroresValidacion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarCatalogos();
+    }
+
+    private async Task CargarCatalogos()
+    {
+        try
+        {
+            // Tropiezo 5 evitado: Carga con Task.WhenAll en paralelo
+            var tareaClientes = ServicioCliente.ListarAsync();
+            var tareaVendedores = ServicioVendedor.ListarAsync();
+            var tareaProductos = ServicioProducto.ListarAsync();
+            var tareaPersonas = ServicioPersona.ListarAsync();
+
+            await Task.WhenAll(tareaClientes, tareaVendedores, tareaProductos, tareaPersonas);
+
+            listaClientes = await tareaClientes;
+            listaVendedores = await tareaVendedores;
+            listaProductos = await tareaProductos;
+            listaPersonas = await tareaPersonas;
+        }
+        catch (Exception ex)
+        {
+            mensajeAlerta = $"Error cargando catálogos: {ex.Message}";
+            esExito = false;
+        }
+    }
+
+    private string ObtenerNombrePersona(string codigo)
+    {
+        var p = listaPersonas.FirstOrDefault(x => x.Codigo == codigo);
+        return p != null ? p.Nombre : codigo;
+    }
+
+    private void AgregarRenglonMemoria()
+    {
+        mensajeAlerta = null;
+
+        if (string.IsNullOrWhiteSpace(productoSeleccionadoCodigo))
+        {
+            mensajeAlerta = "Seleccione un producto para agregar.";
+            esExito = false;
+            return;
+        }
+
+        if (cantidadSeleccionada <= 0)
+        {
+            mensajeAlerta = "La cantidad debe ser mayor a cero.";
+            esExito = false;
+            return;
+        }
+
+        var producto = listaProductos.FirstOrDefault(p => p.Codigo == productoSeleccionadoCodigo);
+        if (producto == null)
+        {
+            mensajeAlerta = "El producto seleccionado no existe.";
+            esExito = false;
+            return;
+        }
+
+        var existente = renglonesEnMemoria.FirstOrDefault(r => r.Codigo == producto.Codigo);
+        if (existente != null)
+        {
+            existente.Cantidad += cantidadSeleccionada;
+        }
+        else
+        {
+            renglonesEnMemoria.Add(new RenglonMemoria
+            {
+                Codigo = producto.Codigo,
+                Nombre = producto.Nombre,
+                Cantidad = cantidadSeleccionada
+            });
+        }
+
+        productoSeleccionadoCodigo = string.Empty;
+        cantidadSeleccionada = 1;
+    }
+
+    private void QuitarRenglonMemoria(string codigo)
+    {
+        renglonesEnMemoria.RemoveAll(r => r.Codigo == codigo);
+    }
+
+    private async Task EmitirFacturaSubmit()
+    {
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        if (clienteSeleccionadoId <= 0)
+        {
+            mensajeAlerta = "Debe seleccionar un cliente.";
+            esExito = false;
+            return;
+        }
+
+        if (vendedorSeleccionadoId <= 0)
+        {
+            mensajeAlerta = "Debe seleccionar un vendedor.";
+            esExito = false;
+            return;
+        }
+
+        if (renglonesEnMemoria.Count == 0)
+        {
+            mensajeAlerta = "La factura debe contener al menos un producto.";
+            esExito = false;
+            return;
+        }
+
+        // DTO sin subtotales ni total (Criterio 14 y Decisión D6)
+        var peticion = new FacturaCrearDto
+        {
+            Fkidcliente = clienteSeleccionadoId,
+            Fkidvendedor = vendedorSeleccionadoId,
+            Productos = renglonesEnMemoria.Select(r => new ItemFacturaCrearDto
+            {
+                Codigo = r.Codigo,
+                Cantidad = r.Cantidad
+            }).ToList()
+        };
+
+        var resultado = await ServicioFactura.EmitirAsync(peticion);
+        esExito = resultado.Exitoso;
+        mensajeAlerta = resultado.Mensaje;
+        listaErroresValidacion = resultado.ErroresValidacion;
+
+        if (resultado.Exitoso)
+        {
+            renglonesEnMemoria.Clear();
+            clienteSeleccionadoId = 0;
+            vendedorSeleccionadoId = 0;
+        }
+    }
+}
+

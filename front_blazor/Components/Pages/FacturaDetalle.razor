@@ -1,0 +1,171 @@
+@page "/facturas/{numero:int}"
+@inject ServicioFactura ServicioFactura
+@inject NavigationManager Navigation
+@rendermode InteractiveServer
+
+<PageTitle>Detalle de Factura #@Numero — Sistema de Facturación v2</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>Factura #@Numero</h2>
+        <span class="badge bg-primary">Subtotales y Total calculados por la Base (3_plan.md 3.5)</span>
+    </div>
+    <a href="/facturas" class="btn btn-outline-secondary">
+        &larr; Volver a Facturas
+    </a>
+</div>
+
+@if (cargando)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2 text-muted">Cargando datos de la factura...</p>
+    </div>
+}
+else if (factura == null)
+{
+    <div class="alert alert-warning shadow-sm">
+        <h4>Factura no encontrada</h4>
+        <p>No se encontró ninguna factura registrada con el número <strong>#@Numero</strong>.</p>
+        <a href="/facturas" class="btn btn-primary mt-2">Ir al listado</a>
+    </div>
+}
+else
+{
+    @if (!string.IsNullOrEmpty(mensajeAlerta))
+    {
+        <div class="alert @(esExito ? "alert-success" : "alert-warning") alert-dismissible fade show shadow-sm mb-4">
+            <strong>@(esExito ? "✔ Éxito:" : "⚠️ Atención:")</strong> @mensajeAlerta
+            <button type="button" class="btn-close float-end" @onclick="() => mensajeAlerta = null">X</button>
+        </div>
+    }
+
+    <!-- Ficha de Encabezado -->
+    <div class="tarjeta mb-4">
+        <div class="tarjeta-header d-flex justify-content-between align-items-center">
+            <span class="fw-bold">Encabezado de la Factura</span>
+            <div>
+                @if (factura.Estado.ToLower() == "activa")
+                {
+                    <span class="badge bg-success fs-6">Activa</span>
+                }
+                else
+                {
+                    <span class="badge bg-danger fs-6">Anulada</span>
+                }
+            </div>
+        </div>
+        <div class="tarjeta-body">
+            <div class="row">
+                <div class="col-md-3 mb-2">
+                    <span class="text-muted d-block small">Fecha de Emisión</span>
+                    <strong>@factura.Fecha.ToString("yyyy-MM-dd HH:mm:ss")</strong>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <span class="text-muted d-block small">Cliente</span>
+                    <strong>@(factura.NombreCliente ?? $"Cliente #{factura.Fkidcliente}")</strong>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <span class="text-muted d-block small">Vendedor</span>
+                    <strong>@(factura.NombreVendedor ?? $"Vendedor #{factura.Fkidvendedor}")</strong>
+                </div>
+                <div class="col-md-3 mb-2">
+                    <span class="text-muted d-block small">Total Oficial</span>
+                    <h4 class="text-success mb-0">@factura.Total.ToString("C0")</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Renglones de Detalle -->
+    <div class="tarjeta">
+        <div class="tarjeta-header d-flex justify-content-between align-items-center">
+            <span class="fw-bold">Renglones de Productos (@factura.Productos.Count)</span>
+            @if (factura.Estado.ToLower() == "activa")
+            {
+                <button class="btn btn-outline-danger btn-sm" @onclick="AnularFactura">
+                    Anular Factura (Borrado Lógico)
+                </button>
+            }
+        </div>
+        <div class="tarjeta-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Código</th>
+                            <th>Descripción del Producto</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-end">Valor Unitario</th>
+                            <th class="text-end">Subtotal (Calculado por Trigger)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in factura.Productos)
+                        {
+                            <tr>
+                                <td><code>@p.CodigoProducto</code></td>
+                                <td>@(p.NombreProducto ?? p.CodigoProducto)</td>
+                                <td class="text-center">@p.Cantidad</td>
+                                <td class="text-end">@p.ValorUnitario.ToString("C0")</td>
+                                <td class="text-end fw-bold">@p.Subtotal.ToString("C0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <td colspan="4" class="text-end fw-bold">Total Factura:</td>
+                            <td class="text-end fw-bold text-success fs-5">@factura.Total.ToString("C0")</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Numero { get; set; }
+
+    private Factura? factura;
+    private bool cargando = true;
+    private string? mensajeAlerta;
+    private bool esExito = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarFactura();
+    }
+
+    private async Task CargarFactura()
+    {
+        cargando = true;
+        try
+        {
+            factura = await ServicioFactura.ConsultarAsync(Numero);
+        }
+        catch (Exception ex)
+        {
+            mensajeAlerta = $"Error al consultar la factura: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task AnularFactura()
+    {
+        mensajeAlerta = null;
+        var resultado = await ServicioFactura.AnularAsync(Numero);
+        esExito = resultado.Exitoso;
+        mensajeAlerta = resultado.Mensaje;
+
+        if (resultado.Exitoso)
+        {
+            await CargarFactura();
+        }
+    }
+}
+

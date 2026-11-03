@@ -57,7 +57,8 @@ services:
       - /app/obj                 #   sin mezclarse con los compilados de Windows
     restart: unless-stopped
     ports:
-      - "8032:8032"              # http://localhost:8032
+      - "8035:8032"              # http://localhost:8035 (v2 oficial)
+      - "8032:8032"              # http://localhost:8032 (retrocompatibilidad)
     environment:
       # La cadena usa el NOMBRE del servicio como host (sqlserver,1433),
       # no localhost: dentro de la red interna de compose los servicios
@@ -81,7 +82,8 @@ services:
     build: ./front_blazor
     container_name: facturas-front-aysw-v1
     ports:
-      - "8096:8096"
+      - "8099:8096"              # http://localhost:8099 (v2 oficial)
+      - "8096:8096"              # http://localhost:8096 (retrocompatibilidad)
     volumes:
       # El codigo montado: `dotnet watch` recompila al guardar, sin reconstruir
       # la imagen.
@@ -103,3 +105,4 @@ services:
 
 volumes:
   mssqldata:      # declaración del volumen nombrado (la "memoria" de la BD)
+

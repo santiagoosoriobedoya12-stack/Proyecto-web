@@ -1,25 +1,56 @@
 @page "/"
 
-<PageTitle>Inicio — Sistema de Facturación v1</PageTitle>
+<PageTitle>Inicio — Sistema de Facturación v2</PageTitle>
 
-<div class="tarjeta">
+<div class="tarjeta mb-4">
     <div class="tarjeta-header">
-        <h2 class="h5 mb-0">Aplicación y Servicios Web — Versión 1</h2>
+        <h2 class="h5 mb-0">Aplicación y Servicios Web — Versión 2 (12 Tablas del Modelo)</h2>
     </div>
     <div class="tarjeta-body">
-        <p>
-            Bienvenido al sistema de facturación desarrollado según la metodología incremental acumulativa.
+        <p class="lead">
+            Bienvenido al sistema de facturación empresarial desarrollado según la metodología incremental acumulativa.
         </p>
         <p>
-            En esta <strong>Versión 1</strong>, el sistema opera las tablas sin clave foránea, comenzando por el corte vertical completo del recurso <strong>Productos</strong>.
+            En esta <strong>Versión 2</strong>, el sistema cierra el modelo con las <strong>12 tablas</strong> de <code>bdfacturas</code>, incorporando la integridad referencial de claves foráneas, operaciones transaccionales mediante procedimientos almacenados y disparadores, y formularios interactivos integrados.
         </p>
+        <div class="row mt-4">
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 border shadow-sm p-3">
+                    <h5 class="fw-bold text-primary">Versión 1: Sin Clave Foránea</h5>
+                    <p class="text-muted small">Tablas maestras independientes:</p>
+                    <div class="d-flex flex-wrap gap-1">
+                        <a href="productos" class="btn btn-outline-primary btn-sm">Productos</a>
+                        <a href="empresas" class="btn btn-outline-primary btn-sm">Empresas</a>
+                        <a href="personas" class="btn btn-outline-primary btn-sm">Personas</a>
+                        <a href="roles" class="btn btn-outline-primary btn-sm">Roles</a>
+                        <a href="rutas" class="btn btn-outline-primary btn-sm">Rutas</a>
+                        <a href="usuarios" class="btn btn-outline-primary btn-sm">Usuarios</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card h-100 border shadow-sm p-3 border-warning">
+                    <h5 class="fw-bold text-dark">Versión 2: Con Clave Foránea y Lógica en BD</h5>
+                    <p class="text-muted small">Tablas dependientes, maestro-detalle y puentes:</p>
+                    <div class="d-flex flex-wrap gap-1">
+                        <a href="clientes" class="btn btn-warning btn-sm">Clientes</a>
+                        <a href="vendedores" class="btn btn-warning btn-sm">Vendedores</a>
+                        <a href="facturas" class="btn btn-warning btn-sm">Facturas</a>
+                        <a href="emitir-factura" class="btn btn-warning btn-sm">Emitir Factura</a>
+                        <a href="usuarios-y-roles" class="btn btn-warning btn-sm">Usuarios con Roles</a>
+                        <a href="roles-por-usuario" class="btn btn-warning btn-sm">Roles por Usuario</a>
+                        <a href="permisos-por-rol" class="btn btn-warning btn-sm">Permisos por Rol</a>
+                    </div>
+                </div>
+            </div>
+        </div>
         <hr />
         <div class="d-flex gap-2">
-            <a href="productos" class="btn btn-primary">
-                Ir a la Gestión de Productos (/productos)
-            </a>
             <a href="http://localhost:8032/swagger" target="_blank" class="btn btn-outline-secondary">
-                Abrir Documentación Swagger de la API
+                Documentación Swagger API (/swagger)
+            </a>
+            <a href="http://localhost:8032/" target="_blank" class="btn btn-outline-info">
+                Diagnóstico API (GET /)
             </a>
         </div>
     </div>

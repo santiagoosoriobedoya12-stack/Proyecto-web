@@ -17,3 +17,4 @@ else
     /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "$MSSQL_SA_PASSWORD" -C -i /scripts/bdfacturas.sql
     echo "==> Inicialización completada con éxito."
 fi
+

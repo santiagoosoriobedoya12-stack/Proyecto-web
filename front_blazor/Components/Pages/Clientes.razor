@@ -1,0 +1,367 @@
+@page "/clientes"
+@inject ServicioCliente ServicioCliente
+@inject ServicioPersona ServicioPersona
+@inject ServicioEmpresa ServicioEmpresa
+@rendermode InteractiveServer
+
+<PageTitle>Clientes — Sistema de Facturación v2</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Gestión de Clientes</h2>
+    <span class="badge bg-primary">Versión 2 · Claves Foráneas</span>
+</div>
+
+@if (errorConexion)
+{
+    <div class="alert alert-danger aviso-desconexion mb-4 shadow-sm" role="alert">
+        <h4 class="alert-heading">⚠️ Error de conexión con la API</h4>
+        <p class="mb-1">No se pudo establecer comunicación con el servicio en <code>/api/cliente</code>.</p>
+        <button class="btn btn-outline-danger btn-sm mt-3" @onclick="CargarDatos">Reintentar conexión</button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(mensajeAlerta))
+{
+    <div class="alert @(esExito ? "alert-success" : "alert-warning") alert-dismissible fade show shadow-sm" role="alert">
+        <strong>@(esExito ? "✔ Operación exitosa:" : "⚠️ Atención:")</strong> @mensajeAlerta
+        @if (listaErroresValidacion != null && listaErroresValidacion.Count > 0)
+        {
+            <ul class="mb-0 mt-2">
+                @foreach (var err in listaErroresValidacion)
+                {
+                    <li>@err</li>
+                }
+            </ul>
+        }
+        <button type="button" class="btn-close float-end" @onclick="() => mensajeAlerta = null">X</button>
+    </div>
+}
+
+<div class="row">
+    <!-- Formulario de Creación / Edición -->
+    <div class="col-12 col-lg-5 mb-4">
+        <div class="tarjeta">
+            <div class="tarjeta-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold">@(modoEdicion ? "Editar Cliente" : "Nuevo Cliente")</span>
+                @if (modoEdicion)
+                {
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="CancelarEdicion">Cancelar</button>
+                }
+            </div>
+            <div class="tarjeta-body">
+                @if (modoEdicion)
+                {
+                    <div class="mb-3">
+                        <label class="form-label">ID del Cliente</label>
+                        <input type="text" class="form-control" value="@formularioCliente.Id" disabled />
+                        <small class="text-muted">Generado automáticamente por IDENTITY(1,1).</small>
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label class="form-label">Límite de Crédito ($)</label>
+                    <input type="number" step="0.01" class="form-control" placeholder="Ej: 5000000"
+                           @bind="formularioCliente.Credito" />
+                </div>
+
+                <!-- Criterios 11 y 12: Desplegable cargado de la API; el usuario VE el nombre y el formulario ENVÍA el código -->
+                <div class="mb-3">
+                    <label class="form-label">Persona Asociada (FK Obligatoria)</label>
+                    <select class="form-select" @bind="formularioCliente.Fkcodpersona">
+                        <option value="">-- Seleccione una Persona --</option>
+                        @foreach (var p in listaPersonas)
+                        {
+                            <option value="@p.Codigo">@p.Nombre (@p.Codigo)</option>
+                        }
+                    </select>
+                    <small class="text-muted">La persona debe existir previamente en la tabla <code>persona</code>.</small>
+                </div>
+
+                <!-- Clave foránea opcional: Empresa (o null si es persona natural) -->
+                <div class="mb-3">
+                    <label class="form-label">Empresa Asociada (FK Opcional)</label>
+                    <select class="form-select" @bind="formularioCliente.Fkcodempresa">
+                        <option value="">-- Ninguna (Persona Natural) --</option>
+                        @foreach (var e in listaEmpresas)
+                        {
+                            <option value="@e.Codigo">@e.Nombre (@e.Codigo)</option>
+                        }
+                    </select>
+                    <small class="text-muted">Deje en 'Ninguna' si el cliente es persona natural.</small>
+                </div>
+
+                <div class="mt-4">
+                    @if (!modoEdicion)
+                    {
+                        <button class="btn btn-primary w-100" @onclick="CrearCliente">
+                            Crear Cliente (POST)
+                        </button>
+                    }
+                    else
+                    {
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-success" @onclick="GuardarFichaCompleta">
+                                Guardar la ficha completa (PUT)
+                            </button>
+                            <button class="btn btn-outline-primary" @onclick="GuardarSoloLoCambiado">
+                                Guardar solo lo que cambié (PATCH)
+                            </button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Consulta y Listado -->
+    <div class="col-12 col-lg-7">
+        <div class="tarjeta">
+            <div class="tarjeta-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold">Listado de Clientes</span>
+                <button class="btn btn-sm btn-outline-primary" @onclick="CargarDatos">Actualizar</button>
+            </div>
+            <div class="tarjeta-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>ID</th>
+                                <th>Persona</th>
+                                <th>Empresa</th>
+                                <th>Crédito</th>
+                                <th class="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (listaClientes.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        No se encontraron clientes registrados.
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var c in listaClientes)
+                                {
+                                    <tr>
+                                        <td><strong>#@c.Id</strong></td>
+                                        <td>@ObtenerNombrePersona(c.Fkcodpersona)</td>
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(c.Fkcodempresa))
+                                            {
+                                                <span class="badge bg-info text-dark">@ObtenerNombreEmpresa(c.Fkcodempresa)</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-light text-secondary border">Persona Natural</span>
+                                            }
+                                        </td>
+                                        <td>@c.Credito.ToString("C0")</td>
+                                        <td class="text-end">
+                                            <button class="btn btn-outline-primary btn-sm me-1" @onclick="() => IniciarEdicion(c)">
+                                                Editar
+                                            </button>
+                                            <button class="btn btn-outline-danger btn-sm" @onclick="() => EliminarCliente(c.Id)">
+                                                Eliminar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Cliente> listaClientes = new();
+    private List<Persona> listaPersonas = new();
+    private List<Empresa> listaEmpresas = new();
+
+    private Cliente formularioCliente = new();
+    private Cliente clienteOriginal = new();
+
+    private bool modoEdicion = false;
+    private bool errorConexion = false;
+    private string? mensajeAlerta;
+    private bool esExito = false;
+    private List<string>? listaErroresValidacion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+    }
+
+    private async Task CargarDatos()
+    {
+        errorConexion = false;
+        mensajeAlerta = null;
+        try
+        {
+            // Cargar listas en paralelo para poblar la tabla y los desplegables de FK
+            var tareaClientes = ServicioCliente.ListarAsync();
+            var tareaPersonas = ServicioPersona.ListarAsync();
+            var tareaEmpresas = ServicioEmpresa.ListarAsync();
+
+            await Task.WhenAll(tareaClientes, tareaPersonas, tareaEmpresas);
+
+            listaClientes = await tareaClientes;
+            listaPersonas = await tareaPersonas;
+            listaEmpresas = await tareaEmpresas;
+        }
+        catch
+        {
+            errorConexion = true;
+        }
+    }
+
+    private string ObtenerNombrePersona(string codigo)
+    {
+        var p = listaPersonas.FirstOrDefault(x => x.Codigo == codigo);
+        return p != null ? $"{p.Nombre} ({codigo})" : codigo;
+    }
+
+    private string ObtenerNombreEmpresa(string codigo)
+    {
+        var e = listaEmpresas.FirstOrDefault(x => x.Codigo == codigo);
+        return e != null ? $"{e.Nombre} ({codigo})" : codigo;
+    }
+
+    private async Task CrearCliente()
+    {
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        if (string.IsNullOrWhiteSpace(formularioCliente.Fkcodpersona))
+        {
+            mensajeAlerta = "Debe seleccionar una persona obligatoriamente.";
+            esExito = false;
+            return;
+        }
+
+        var resultado = await ServicioCliente.CrearAsync(formularioCliente);
+        esExito = resultado.Exitoso;
+        mensajeAlerta = resultado.Mensaje;
+        listaErroresValidacion = resultado.ErroresValidacion;
+
+        if (resultado.Exitoso)
+        {
+            formularioCliente = new Cliente();
+            await CargarDatos();
+        }
+    }
+
+    private void IniciarEdicion(Cliente c)
+    {
+        modoEdicion = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        // Guardamos copia del original para detectar qué cambió en PATCH
+        clienteOriginal = new Cliente
+        {
+            Id = c.Id,
+            Credito = c.Credito,
+            Fkcodpersona = c.Fkcodpersona,
+            Fkcodempresa = c.Fkcodempresa
+        };
+
+        formularioCliente = new Cliente
+        {
+            Id = c.Id,
+            Credito = c.Credito,
+            Fkcodpersona = c.Fkcodpersona,
+            Fkcodempresa = c.Fkcodempresa
+        };
+    }
+
+    private void CancelarEdicion()
+    {
+        modoEdicion = false;
+        formularioCliente = new Cliente();
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+    }
+
+    private async Task GuardarFichaCompleta()
+    {
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        var resultado = await ServicioCliente.GuardarFichaCompletaAsync(formularioCliente);
+        esExito = resultado.Exitoso;
+        mensajeAlerta = resultado.Mensaje;
+        listaErroresValidacion = resultado.ErroresValidacion;
+
+        if (resultado.Exitoso)
+        {
+            CancelarEdicion();
+            await CargarDatos();
+        }
+    }
+
+    private async Task GuardarSoloLoCambiado()
+    {
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        var cambios = new Dictionary<string, object?>();
+
+        if (formularioCliente.Credito != clienteOriginal.Credito)
+        {
+            cambios["credito"] = formularioCliente.Credito;
+        }
+
+        if (formularioCliente.Fkcodpersona != clienteOriginal.Fkcodpersona)
+        {
+            cambios["fkcodpersona"] = formularioCliente.Fkcodpersona;
+        }
+
+        if (formularioCliente.Fkcodempresa != clienteOriginal.Fkcodempresa)
+        {
+            cambios["fkcodempresa"] = string.IsNullOrWhiteSpace(formularioCliente.Fkcodempresa) ? null : formularioCliente.Fkcodempresa;
+        }
+
+        if (cambios.Count == 0)
+        {
+            mensajeAlerta = "No se detectó ningún cambio en el formulario.";
+            esExito = false;
+            return;
+        }
+
+        var resultado = await ServicioCliente.GuardarSoloLoCambiadoAsync(formularioCliente.Id, cambios);
+        esExito = resultado.Exitoso;
+        mensajeAlerta = resultado.Mensaje;
+        listaErroresValidacion = resultado.ErroresValidacion;
+
+        if (resultado.Exitoso)
+        {
+            CancelarEdicion();
+            await CargarDatos();
+        }
+    }
+
+    private async Task EliminarCliente(int id)
+    {
+        if (modoEdicion && formularioCliente.Id == id)
+        {
+            CancelarEdicion();
+        }
+
+        var resultado = await ServicioCliente.EliminarAsync(id);
+        esExito = resultado.Exitoso;
+        mensajeAlerta = resultado.Mensaje;
+        listaErroresValidacion = resultado.ErroresValidacion;
+
+        if (resultado.Exitoso)
+        {
+            await CargarDatos();
+        }
+    }
+}
+

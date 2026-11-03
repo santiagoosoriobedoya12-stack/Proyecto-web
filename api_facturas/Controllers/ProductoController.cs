@@ -187,6 +187,15 @@ public class ProductoController : ControllerBase
                 detalle = ex.Message
             });
         }
+        catch (SqlException ex) when (ex.Number == 547)
+        {
+            return StatusCode(409, new
+            {
+                estado = 409,
+                mensaje = "Conflicto de integridad referencial: el producto tiene renglones de factura asociados.",
+                detalle = ex.Message
+            });
+        }
         catch (SqlException ex)
         {
             return StatusCode(500, new
@@ -296,6 +305,15 @@ public class ProductoController : ControllerBase
             {
                 estado = 400,
                 mensaje = "Parámetros inválidos.",
+                detalle = ex.Message
+            });
+        }
+        catch (SqlException ex) when (ex.Number == 547)
+        {
+            return StatusCode(409, new
+            {
+                estado = 409,
+                mensaje = "Conflicto de integridad referencial: el producto tiene renglones de factura asociados.",
                 detalle = ex.Message
             });
         }

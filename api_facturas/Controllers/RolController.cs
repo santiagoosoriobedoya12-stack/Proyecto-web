@@ -111,6 +111,10 @@ public class RolController : ControllerBase
         {
             return BadRequest(new { estado = 400, mensaje = "Parámetros inválidos.", detalle = ex.Message });
         }
+        catch (SqlException ex) when (ex.Number == 547)
+        {
+            return StatusCode(409, new { estado = 409, mensaje = "Conflicto de integridad referencial: el rol está asignado a usuarios o rutas.", detalle = ex.Message });
+        }
         catch (SqlException ex)
         {
             return StatusCode(500, new { estado = 500, mensaje = "Error en el motor de base de datos.", detalle = ex.Message });
@@ -137,6 +141,10 @@ public class RolController : ControllerBase
         {
             return BadRequest(new { estado = 400, mensaje = "Parámetros inválidos.", detalle = ex.Message });
         }
+        catch (SqlException ex) when (ex.Number == 547)
+        {
+            return StatusCode(409, new { estado = 409, mensaje = "Conflicto de integridad referencial: el rol está asignado a usuarios o rutas.", detalle = ex.Message });
+        }
         catch (SqlException ex)
         {
             return StatusCode(500, new { estado = 500, mensaje = "Error en el motor de base de datos.", detalle = ex.Message });
@@ -162,6 +170,10 @@ public class RolController : ControllerBase
         catch (ArgumentException ex)
         {
             return BadRequest(new { estado = 400, mensaje = "Parámetros inválidos.", detalle = ex.Message });
+        }
+        catch (SqlException ex) when (ex.Number == 547)
+        {
+            return StatusCode(409, new { estado = 409, mensaje = "Conflicto de integridad referencial: el rol está asignado a usuarios o rutas.", detalle = ex.Message });
         }
         catch (SqlException ex)
         {

@@ -29,6 +29,42 @@ builder.Services.AddScoped<IServicioPersona, ServicioPersona>();
 builder.Services.AddScoped<IRepositorioRol>(_ => new RepositorioRolSqlServer(cadenaConexion));
 builder.Services.AddScoped<IServicioRol, ServicioRol>();
 
+// Registro para Ruta
+builder.Services.AddScoped<IRepositorioRuta>(_ => new RepositorioRutaSqlServer(cadenaConexion));
+builder.Services.AddScoped<IServicioRuta, ServicioRuta>();
+
+// Registro para Usuario
+builder.Services.AddScoped<IRepositorioUsuario>(_ => new RepositorioUsuarioSqlServer(cadenaConexion));
+builder.Services.AddScoped<IServicioUsuario, ServicioUsuario>();
+
+// ==============================================================
+// REGISTROS VERSIÓN 2 (TABLAS CON CLAVE FORÁNEA)
+// ==============================================================
+
+// Registro para Cliente (FK Persona y Empresa)
+builder.Services.AddScoped<IRepositorioCliente>(_ => new RepositorioClienteSqlServer(cadenaConexion));
+builder.Services.AddScoped<IServicioCliente, ServicioCliente>();
+
+// Registro para Vendedor (FK Persona)
+builder.Services.AddScoped<IRepositorioVendedor>(_ => new RepositorioVendedorSqlServer(cadenaConexion));
+builder.Services.AddScoped<IServicioVendedor, ServicioVendedor>();
+
+// Registro para Factura (Maestro-Detalle por Procedimientos Almacenados)
+builder.Services.AddScoped<IRepositorioFactura>(_ => new RepositorioFacturaSqlServer(cadenaConexion));
+builder.Services.AddScoped<IServicioFactura, ServicioFactura>();
+
+// Registro para Tabla Puente Rol-Usuario
+builder.Services.AddScoped<IRepositorioRolUsuario>(_ => new RepositorioRolUsuarioSqlServer(cadenaConexion));
+builder.Services.AddScoped<IServicioRolUsuario, ServicioRolUsuario>();
+
+// Registro para Tabla Puente Ruta-Rol
+builder.Services.AddScoped<IRepositorioRutaRol>(_ => new RepositorioRutaRolSqlServer(cadenaConexion));
+builder.Services.AddScoped<IServicioRutaRol, ServicioRutaRol>();
+
+// Registro para Recurso Compuesto Usuario con Roles (5 Procedimientos)
+builder.Services.AddScoped<IRepositorioUsuarioConRoles>(_ => new RepositorioUsuarioConRolesSqlServer(cadenaConexion));
+builder.Services.AddScoped<IServicioUsuarioConRoles, ServicioUsuarioConRoles>();
+
 // ==============================================================
 // 2. CONFIGURACIÓN DE CONTROLADORES Y RESPUESTA 422 PERSONALIZADA
 // ==============================================================
@@ -68,9 +104,9 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
-        Title = "API Facturación - Versión 1",
-        Version = "v1",
-        Description = "API REST construida según la metodología por versiones acumulativas."
+        Title = "API Facturación - Versión 2",
+        Version = "v2",
+        Description = "API REST construida según la metodología por versiones acumulativas (Versión 2: Con Claves Foráneas)."
     });
 });
 
@@ -88,12 +124,12 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = "swagger"; // Disponible en http://localhost:8032/swagger
 });
 
-// Endpoint RF7: Diagnóstico en la raíz (GET /)
+// Endpoint RF7 / Criterio 1: Diagnóstico en la raíz (GET /) que reporta versión v2
 app.MapGet("/", () => Results.Ok(new
 {
     mensaje = "API Facturas funcionando",
-    version = "v1",
-    contratos = "docs/spec_kit/versiones/v1_sin_fk/6_contracts.md"
+    version = "v2",
+    contratos = "docs/spec_kit/versiones/v2_con_fk/6_contracts.md"
 }));
 
 app.MapControllers();

@@ -1277,3 +1277,4 @@ INSERT INTO rutarol (fkidruta, fkidrol) VALUES
 (1, 4), (4, 4), (8, 4),
 (1, 5), (8, 5);
 GO
+
