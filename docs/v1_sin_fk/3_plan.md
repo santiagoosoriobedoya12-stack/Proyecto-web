@@ -1,4 +1,4 @@
-﻿# Plan t├®cnico ÔÇö Versi├│n 1: las seis tablas sin FK (C#/ASP.NET Core + Blazor)
+# Plan t├®cnico ÔÇö Versi├│n 1: las seis tablas sin FK (C#/ASP.NET Core + Blazor)
 
 > **Versi├│n 1** ┬À C├ôMO construir lo especificado en [2_spec.md](2_spec.md).
 > El porqu├® de cada decisi├│n: [4_research.md](4_research.md) ┬À contratos

@@ -107,7 +107,13 @@ Cada versión cuenta con su propio paquete documental completo y aislado:
 ---
 
 ### 📁 [Versión 3 — Seguridad y Control de Acceso RBAC (`docs/v3_seguridad_rbac/`)](v3_seguridad_rbac/README.md)
-- [README.md](v3_seguridad_rbac/README.md): Arquitectura de seguridad, flujo del token JWT, códigos 401 y 403, y verificación de rutas.
+- [2_spec.md](v3_seguridad_rbac/2_spec.md): Especificación funcional de autenticación, JWT, RBAC y criterios de aceptación.
+- [3_plan.md](v3_seguridad_rbac/3_plan.md): Plan técnico: Middlewares de seguridad, JwtBearer, PBKDF2 y AuthenticationStateProvider.
+- [4_research.md](v3_seguridad_rbac/4_research.md): Análisis técnico: JWT vs Cookies, Salting criptográfico, 401 vs 403.
+- [5_data_model.md](v3_seguridad_rbac/5_data_model.md): Grafo relacional de seguridad y Stored Procedure `verificar_acceso_ruta`.
+- [6_contracts.md](v3_seguridad_rbac/6_contracts.md): Contratos de `/api/auth/login`, `/api/auth/perfil` y sobre de errores 401/403.
+- [7_quickstart.md](v3_seguridad_rbac/7_quickstart.md): Guía de pruebas rápidas con `curl` para bloqueo 401, login y bloqueo 403.
+- [8_tasks.md](v3_seguridad_rbac/8_tasks.md): Fases de construcción ordenadas paso a paso para la implementación de la v3.
 
 ---
 

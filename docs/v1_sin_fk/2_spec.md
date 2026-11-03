@@ -1,4 +1,4 @@
-﻿# Especificaci├│n ÔÇö Versi├│n 1: las SEIS tablas sin clave for├ínea, con su interfaz gr├ífica
+# Especificaci├│n ÔÇö Versi├│n 1: las SEIS tablas sin clave for├ínea, con su interfaz gr├ífica
 
 > **Versi├│n 1** del desarrollo incremental.
 > En v1 el sistema completo ES esto: la BD `bdfacturas` s├¡ se crea COMPLETA desde el inicio ÔÇö es infraestructura dada.

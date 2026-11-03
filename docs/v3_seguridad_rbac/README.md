@@ -87,10 +87,14 @@ El middleware de autorización utiliza este mecanismo para asegurar que los perm
 
 ---
 
-## 6. Próximos Pasos para Iniciar la Versión 3
+## 6. Índice de Documentos de la Versión 3
 
-1. Crear el endpoint de autenticación `POST /api/auth/login` (recibe credenciales, valida hash y emite token/claims).
-2. Configurar el middleware de autenticación y autorización en `api_facturas/Program.cs`.
-3. Crear el servicio de autenticación y proveedor de estado (`AuthenticationStateProvider`) en `front_blazor`.
-4. Diseñar la página `Login.razor` y envolver el layout principal en `<AuthorizeRouteView>`.
-
+| Documento | Descripción |
+|---|---|
+| [2_spec.md](2_spec.md) | Especificación funcional de seguridad, autenticación JWT, RBAC y criterios de aceptación. |
+| [3_plan.md](3_plan.md) | Plan técnico: middlewares de seguridad, servicios de token, criptografía y Blazor StateProvider. |
+| [4_research.md](4_research.md) | Análisis de decisiones: JWT vs Cookies, Hashing con Salt (PBKDF2), Middleware vs Atributos. |
+| [5_data_model.md](5_data_model.md) | Modelo relacional de seguridad (`usuario`, `rol`, `rol_usuario`, `ruta`, `rutarol`) y SP `verificar_acceso_ruta`. |
+| [6_contracts.md](6_contracts.md) | Contratos de endpoints `/api/auth/login`, `/api/auth/perfil` y sobre de errores 401 y 403. |
+| [7_quickstart.md](7_quickstart.md) | Guía de pruebas rápidas con `curl` para bloqueo 401, login con token y bloqueo 403. |
+| [8_tasks.md](8_tasks.md) | Fases de construcción ordenadas paso a paso para la implementación de la v3. |
