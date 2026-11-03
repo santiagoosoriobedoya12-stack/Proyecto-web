@@ -15,3 +15,4 @@ public interface IServicioPersona
     Task<int> ActualizarParcialAsync(string codigo, PersonaActualizar peticion);
     Task<int> EliminarAsync(string codigo);
 }
+

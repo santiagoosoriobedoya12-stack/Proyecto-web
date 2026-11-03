@@ -11,3 +11,4 @@ public class Persona
     public required string Email { get; set; }
     public required string Telefono { get; set; }
 }
+

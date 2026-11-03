@@ -16,3 +16,4 @@ public class EmpresaCrear
     [StringLength(100, MinimumLength = 1, ErrorMessage = "El campo nombre no puede estar vacío ni exceder 100 caracteres.")]
     public string? Nombre { get; set; }
 }
+

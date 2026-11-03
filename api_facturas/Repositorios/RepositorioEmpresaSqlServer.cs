@@ -91,3 +91,4 @@ public class RepositorioEmpresaSqlServer : IRepositorioEmpresa
         return await conexion.ExecuteAsync(sql, new { codigo });
     }
 }
+

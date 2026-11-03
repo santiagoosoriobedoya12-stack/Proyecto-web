@@ -13,3 +13,4 @@ public interface IRepositorioEmpresa
     Task<int> ActualizarAsync(string codigo, Dictionary<string, object> datos);
     Task<int> EliminarAsync(string codigo);
 }
+

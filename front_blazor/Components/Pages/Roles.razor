@@ -1,0 +1,301 @@
+@page "/roles"
+@inject ServicioRol ServicioRol
+@rendermode InteractiveServer
+
+<PageTitle>Roles — Sistema de Facturación v1</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Gestión de Roles</h2>
+    <span class="badge bg-secondary">Recurso: /roles</span>
+</div>
+
+@if (errorConexion)
+{
+    <div class="alert alert-danger aviso-desconexion mb-4 shadow-sm" role="alert">
+        <h4 class="alert-heading">⚠️ Error de conexión con la API</h4>
+        <p class="mb-1">No se pudo establecer comunicación con el servicio en <code>/api/rol</code>.</p>
+        <button class="btn btn-outline-danger btn-sm mt-3" @onclick="CargarRoles">Reintentar conexión</button>
+    </div>
+}
+
+@if (!string.IsNullOrEmpty(mensajeAlerta))
+{
+    <div class="alert @(esExito ? "alert-success" : "alert-warning") alert-dismissible fade show shadow-sm" role="alert">
+        <strong>@(esExito ? "✔ Operación exitosa:" : "⚠️ Atención:")</strong> @mensajeAlerta
+        @if (listaErroresValidacion != null && listaErroresValidacion.Count > 0)
+        {
+            <ul class="mb-0 mt-2">
+                @foreach (var err in listaErroresValidacion)
+                {
+                    <li>@err</li>
+                }
+            </ul>
+        }
+        <button type="button" class="btn-close float-end" @onclick="() => mensajeAlerta = null">X</button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-12 col-lg-5 mb-4">
+        <div class="tarjeta">
+            <div class="tarjeta-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold">@(modoEdicion ? "Editar Rol" : "Nuevo Rol")</span>
+                @if (modoEdicion)
+                {
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="CancelarEdicion">Cancelar</button>
+                }
+            </div>
+            <div class="tarjeta-body">
+                @if (modoEdicion)
+                {
+                    <div class="mb-3">
+                        <label class="form-label">ID del Rol</label>
+                        <input type="text" class="form-control" value="@formularioRol.Id" disabled />
+                        <small class="text-muted">Generado automáticamente por la base de datos (IDENTITY).</small>
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label class="form-label">Nombre del Rol</label>
+                    <input type="text" class="form-control" placeholder="Ej: Auditor"
+                           @bind="formularioRol.Nombre" />
+                    <small class="text-muted">Nombre descriptivo del rol en el sistema.</small>
+                </div>
+
+                <div class="acciones mt-4">
+                    @if (!modoEdicion)
+                    {
+                        <button class="btn btn-success" @onclick="CrearRol" disabled="@cargando">
+                            Crear rol
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary" @onclick="GuardarFichaCompleta" disabled="@cargando">
+                            Guardar la ficha completa
+                        </button>
+                        <button class="btn btn-secondary" @onclick="GuardarSoloLoCambiado" disabled="@cargando">
+                            Guardar solo lo que cambié
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-7 mb-4">
+        <div class="tarjeta">
+            <div class="tarjeta-header d-flex justify-content-between align-items-center">
+                <span class="fw-bold">Listado de Roles</span>
+                <span class="badge bg-primary">Total: @listaRoles.Count</span>
+            </div>
+            <div class="tarjeta-body p-0">
+                @if (cargando)
+                {
+                    <div class="p-4 text-center text-muted"><em>Cargando roles...</em></div>
+                }
+                else if (listaRoles.Count == 0 && !errorConexion)
+                {
+                    <div class="p-4 text-center text-muted"><em>No hay roles registrados (HTTP 204).</em></div>
+                }
+                else if (!errorConexion)
+                {
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Nombre del Rol</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in listaRoles)
+                                {
+                                    <tr>
+                                        <td><span class="badge bg-secondary">#@r.Id</span></td>
+                                        <td>@r.Nombre</td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" @onclick="() => CargarEnEdicion(r)">Editar</button>
+                                                <button class="btn btn-outline-danger" @onclick="() => EliminarRol(r.Id)">Borrar</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Rol> listaRoles = new();
+    private Rol formularioRol = new();
+    private Rol? rolOriginalEdicion;
+
+    private bool modoEdicion = false;
+    private bool cargando = false;
+    private bool errorConexion = false;
+    private bool esExito = false;
+    private string? mensajeAlerta;
+    private List<string>? listaErroresValidacion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarRoles();
+    }
+
+    private async Task CargarRoles()
+    {
+        cargando = true;
+        errorConexion = false;
+        try
+        {
+            listaRoles = await ServicioRol.ListarAsync();
+        }
+        catch
+        {
+            errorConexion = true;
+            listaRoles = new List<Rol>();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CrearRol()
+    {
+        cargando = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        var resultado = await ServicioRol.CrearAsync(formularioRol);
+        if (resultado.Exitoso)
+        {
+            esExito = true;
+            mensajeAlerta = resultado.Mensaje;
+            formularioRol = new Rol();
+            await CargarRoles();
+        }
+        else
+        {
+            esExito = false;
+            mensajeAlerta = resultado.Mensaje;
+            listaErroresValidacion = resultado.ErroresValidacion;
+        }
+
+        cargando = false;
+    }
+
+    private void CargarEnEdicion(Rol r)
+    {
+        modoEdicion = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        rolOriginalEdicion = new Rol { Id = r.Id, Nombre = r.Nombre };
+        formularioRol = new Rol { Id = r.Id, Nombre = r.Nombre };
+    }
+
+    private void CancelarEdicion()
+    {
+        modoEdicion = false;
+        formularioRol = new Rol();
+        rolOriginalEdicion = null;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+    }
+
+    private async Task GuardarFichaCompleta()
+    {
+        cargando = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        var resultado = await ServicioRol.GuardarFichaCompletaAsync(formularioRol);
+        if (resultado.Exitoso)
+        {
+            esExito = true;
+            mensajeAlerta = resultado.Mensaje;
+            CancelarEdicion();
+            await CargarRoles();
+        }
+        else
+        {
+            esExito = false;
+            mensajeAlerta = resultado.Mensaje;
+            listaErroresValidacion = resultado.ErroresValidacion;
+        }
+
+        cargando = false;
+    }
+
+    private async Task GuardarSoloLoCambiado()
+    {
+        cargando = true;
+        mensajeAlerta = null;
+        listaErroresValidacion = null;
+
+        var cambios = new Dictionary<string, object>();
+        if (rolOriginalEdicion != null && formularioRol.Nombre != rolOriginalEdicion.Nombre)
+        {
+            cambios["nombre"] = formularioRol.Nombre;
+        }
+
+        if (cambios.Count == 0)
+        {
+            esExito = false;
+            mensajeAlerta = "No se detectaron cambios para guardar.";
+            cargando = false;
+            return;
+        }
+
+        var resultado = await ServicioRol.GuardarSoloLoCambiadoAsync(formularioRol.Id, cambios);
+        if (resultado.Exitoso)
+        {
+            esExito = true;
+            mensajeAlerta = resultado.Mensaje;
+            CancelarEdicion();
+            await CargarRoles();
+        }
+        else
+        {
+            esExito = false;
+            mensajeAlerta = resultado.Mensaje;
+            listaErroresValidacion = resultado.ErroresValidacion;
+        }
+
+        cargando = false;
+    }
+
+    private async Task EliminarRol(int id)
+    {
+        cargando = true;
+        mensajeAlerta = null;
+
+        var resultado = await ServicioRol.EliminarAsync(id);
+        if (resultado.Exitoso)
+        {
+            esExito = true;
+            mensajeAlerta = resultado.Mensaje;
+            if (modoEdicion && formularioRol.Id == id)
+            {
+                CancelarEdicion();
+            }
+            await CargarRoles();
+        }
+        else
+        {
+            esExito = false;
+            mensajeAlerta = resultado.Mensaje;
+        }
+
+        cargando = false;
+    }
+}
+

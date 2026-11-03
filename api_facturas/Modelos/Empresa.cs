@@ -16,3 +16,4 @@ public class Empresa
     /// </summary>
     public required string Nombre { get; set; }
 }
+

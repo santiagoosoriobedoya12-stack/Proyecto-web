@@ -21,3 +21,4 @@ public class PersonaReemplazo
     [StringLength(20, MinimumLength = 1, ErrorMessage = "El campo telefono no puede estar vacío.")]
     public string? Telefono { get; set; }
 }
+

@@ -16,3 +16,4 @@ public class EmpresaActualizar
         return Nombre != null;
     }
 }
+

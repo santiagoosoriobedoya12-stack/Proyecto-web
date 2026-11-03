@@ -23,3 +23,4 @@ public class PersonaActualizar
         return Nombre != null || Email != null || Telefono != null;
     }
 }
+
