@@ -130,3 +130,10 @@ Al momento de defender el proyecto, tenga presentes estos conceptos clave:
    - **409 Conflict:** La petición está bien formada sintácticamente, pero entra en conflicto con el estado actual de la base de datos (ej. violar una llave foránea porque el padre no existe, o intentar registrar un duplicado).
 4. **¿Por qué en Blazor usamos `Task.WhenAll`?**
    - Si una pantalla necesita cargar personas y empresas de la API de forma secuencial (`await Servicio1; await Servicio2`), los tiempos de espera se suman. Con `Task.WhenAll`, ambas peticiones viajan concurrentemente, reduciendo el tiempo de carga a una fracción.
+
+---
+
+## 🎓 [Guía Completa de Retroalimentación y Preguntas de Sustentación (Leer Aquí)](RETROALIMENTACION_Y_SUSTENTACION.md)
+
+Para un desglose completo de la retroalimentación técnica, justificaciones arquitectónicas versión por versión y las 10 preguntas clave de examen resueltas, consulta el documento:
+👉 **[docs/RETROALIMENTACION_Y_SUSTENTACION.md](RETROALIMENTACION_Y_SUSTENTACION.md)**

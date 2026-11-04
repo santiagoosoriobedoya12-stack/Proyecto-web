@@ -4,6 +4,12 @@ Sistema integral de gestión comercial y facturación desarrollado bajo la **met
 
 ---
 
+## 👥 Integrantes / Equipo de Trabajo
+- **Santiago Osorio Bedoya** ([@santiagoosoriobedoya12-stack](https://github.com/santiagoosoriobedoya12-stack)) — `santiagoosoriobedoya12@gmail.com`
+- **Samuel López Jiménez** ([@samuellopezjimenez788-lab](https://github.com/samuellopezjimenez788-lab)) — `samuellopezjimenez788@gmail.com`
+
+---
+
 ## 🗺️ Mapa y Estado de Versiones
 
 Cada versión incluye a la anterior de forma acumulativa. Ninguna versión se cierra si no cuenta con su **API REST** y su **Interfaz Gráfica** funcionando en paralelo y con sus pruebas de regresión al 100%.
@@ -12,7 +18,7 @@ Cada versión incluye a la anterior de forma acumulativa. Ninguna versión se ci
 | :--- | :--- | :--- | :---: | :---: |
 | **v1** | CRUD completo de las 6 tablas sin clave foránea — API e interfaz gráfica | `producto`, `empresa`, `persona`, `rol`, `ruta`, `usuario` | **Cerrada (100%)** | [Ver Docs v1](docs/v1_sin_fk/README.md) |
 | **v2** | Las 12 tablas completas: claves foráneas, maestro-detalle por Stored Procedures, trigger contable y carga paralela en Blazor | `cliente`, `vendedor`, `factura`, `productosporfactura`, `rol_usuario`, `rutarol`, `usuario_con_roles` | **Cerrada (100%)** | [Ver Docs v2](docs/v2_con_fk/README.md) |
-| **v3** | Control de acceso: contraseñas con hash, sesión con tokens, control RBAC y protección de rutas con 401 y 403 | Procedimiento `verificar_acceso_ruta`, login y guards de navegación | **En desarrollo** | [Ver Docs v3](docs/v3_seguridad_rbac/README.md) |
+| **v3** | Control de acceso: contraseñas con hash, sesión con tokens, control RBAC y protección de rutas con 401 y 403 | Procedimiento `verificar_acceso_ruta`, login y guards de navegación | **Cerrada (100%)** | [Ver Docs v3](docs/v3_seguridad_rbac/README.md) |
 | **v4** | 10 consultas multitabla complejas (4+ tablas), tablero de métricas con gráficos, marca corporativa y despliegue | `/api/consultas` cruzando las 12 tablas | Pendiente | [Índice General](docs/README.md) |
 | **v5** | Patrón repositorio con múltiples motores de base de datos (PostgreSQL, MariaDB, etc.) | Arquitectura desacoplada multi-motor | Futura | — |
 
@@ -22,6 +28,7 @@ Cada versión incluye a la anterior de forma acumulativa. Ninguna versión se ci
 
 Para consultar qué contiene cada versión, cómo se diferencian y preparar la sustentación técnica, revisa:
 
+- 🎓 **[Guía Maestra de Retroalimentación y Sustentación (`docs/RETROALIMENTACION_Y_SUSTENTACION.md`)](docs/RETROALIMENTACION_Y_SUSTENTACION.md)**: Análisis técnico integral y respuestas a las 10 preguntas clave de examen.
 - 📖 **[Documento Maestro de Arquitectura y Diferencias (`docs/README.md`)](docs/README.md)**: Matriz comparativa lado a lado, mapa relacional de las 12 tablas y preguntas frecuentes de examen.
 - 📁 **[Versión 1 — Recursos Sin Clave Foránea (`docs/v1_sin_fk/`)](docs/v1_sin_fk/README.md)**: Fundamentos de arquitectura en 3 capas (Controlador-Servicio-Repositorio) con Dapper.
 - 📁 **[Versión 2 — Tablas con Clave Foránea y Lógica en BD (`docs/v2_con_fk/`)](docs/v2_con_fk/README.md)**: Integridad referencial, código 409 Conflict, facturación maestro-detalle con Stored Procedures y disparadores.
