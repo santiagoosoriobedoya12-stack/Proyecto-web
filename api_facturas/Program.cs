@@ -231,7 +231,7 @@ app.MapGet("/", () => Results.Ok(new
 {
     mensaje = "API Facturas funcionando",
     version = "v4",
-    contratos = "docs/v4_reportes_dashboard/6_contracts.md"
+    contratos = "docs/spec_kit/versiones/v4_reportes_dashboard/6_contracts.md"
 })).AllowAnonymous();
 
 app.MapControllers();

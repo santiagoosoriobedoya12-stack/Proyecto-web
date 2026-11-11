@@ -19,8 +19,8 @@ Authorization: Bearer <jwt-token>
 | Código | Condición |
 |---|---|
 | **200 OK** | Petición autenticada con token válido y rol autorizado. |
-| **401 Unauthorized** | Token ausente, alterado o vencido (`{"error":"Token ausente o inválido"}`). |
-| **403 Forbidden** | Usuario autenticado cuyo rol no tiene asignado el permiso de la ruta. |
+| **401 Unauthorized** | Token ausente, alterado o vencido (`{"estado":401,"mensaje":"No hay una sesion valida. Inicie sesion."}`). |
+| **403 Forbidden** | Usuario autenticado cuyo rol no tiene asignado el permiso de la ruta (`{"estado":403,"mensaje":"Su rol no tiene permiso para esta operacion.","ruta":"interfaz.inicio"}`). |
 
 ---
 
@@ -209,6 +209,18 @@ Authorization: Bearer <jwt-token>
   "totalProductos": 24,
   "productosStockCritico": 4,
   "ticketPromedio": 3240000.00
+}
+```
+
+---
+
+## 4. Diagnóstico de la API (`GET /`)
+
+```json
+GET /  ->  200 {
+  "mensaje": "API Facturas funcionando",
+  "version": "v4",
+  "contratos": "docs/spec_kit/versiones/v4_reportes_dashboard/6_contracts.md"
 }
 ```
 
