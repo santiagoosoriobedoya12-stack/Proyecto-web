@@ -1,0 +1,628 @@
+@page "/consultas"
+@using FrontFacturas.Modelos.Consultas
+@using FrontFacturas.Servicios
+@inject ServicioConsultas ServicioConsultas
+@inject EstadoSesion EstadoSesion
+
+<PageTitle>Consultas Multitabla — FactuCorp ERP v4</PageTitle>
+
+<!-- ENCABEZADO DE LA SECCIÓN ANALÍTICA -->
+<div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+        <h2 class="h3 fw-bold text-dark mb-1">📈 Centro de Consultas Multitabla Complejas</h2>
+        <p class="text-muted small mb-0">
+            Explorador de reportes analíticos avanzados. Cada consulta cruza entre <strong>4 y 6 tablas relacionales</strong> de <code>bdfacturas</code>.
+        </p>
+    </div>
+    <a href="dashboard" class="btn btn-outline-primary btn-sm">
+        📊 Volver al Dashboard
+    </a>
+</div>
+
+<!-- VALIDACIÓN DE PERMISOS Y SESIÓN -->
+@if (!EstadoSesion.EstaAutenticado)
+{
+    <div class="alert alert-warning d-flex justify-content-between align-items-center">
+        <div>
+            <strong>⚠️ Acceso Restringido:</strong> Debes iniciar sesión con un usuario y rol autorizado para ejecutar las consultas de analítica.
+        </div>
+        <a href="sesion" class="btn btn-warning btn-sm">Iniciar Sesión</a>
+    </div>
+}
+else
+{
+    <!-- PANEL DE CONTROL: SELECTOR DE CONSULTAS Y FILTRO EN TIEMPO REAL -->
+    <div class="card border-0 shadow-sm p-3 mb-4 bg-white rounded-3">
+        <div class="row g-3 align-items-center">
+            <!-- Desplegable para seleccionar entre las 10 consultas -->
+            <div class="col-lg-6">
+                <label class="form-label fw-bold text-secondary small text-uppercase">Selecciona el Reporte Analítico:</label>
+                <select class="form-select form-select-lg" @bind="consultaSeleccionada" @bind:after="EjecutarConsultaAsync">
+                    <option value="c1">C1 — Consolidado Maestro de Facturación (6 tablas)</option>
+                    <option value="c2">C2 — Ranking de Productos más Vendidos y Recaudación (4 tablas)</option>
+                    <option value="c3">C3 — Desempeño Comercial y Productividad por Vendedor (5 tablas)</option>
+                    <option value="c4">C4 — Segmentación de Clientes de Alto Valor (5 tablas)</option>
+                    <option value="c5">C5 — Alerta Preventiva de Stock Crítico y Rotación (4 tablas)</option>
+                    <option value="c6">C6 — Auditoría de Seguridad, Roles y Rutas Permitidas (5 tablas)</option>
+                    <option value="c7">C7 — Renglones Detallados de Facturación Transaccional (5 tablas)</option>
+                    <option value="c8">C8 — Utilización de Línea de Crédito y Exposición (4 tablas)</option>
+                    <option value="c9">C9 — Clientes Inactivos sin Compras Registradas (4 tablas)</option>
+                    <option value="c10">C10 — Auditoría de Facturas Anuladas e Impacto Financiero (5 tablas)</option>
+                </select>
+            </div>
+            <!-- Campo de búsqueda en memoria reactivo -->
+            <div class="col-lg-4">
+                <label class="form-label fw-bold text-secondary small text-uppercase">Filtrar en Resultados:</label>
+                <input type="text" class="form-control" placeholder="Buscar texto, código, nombre..." @bind="filtroTexto" @bind:event="oninput" />
+            </div>
+            <!-- Botón de ejecución manual de la consulta -->
+            <div class="col-lg-2 d-flex align-items-end">
+                <button class="btn btn-primary w-100 py-2 fw-semibold" @onclick="EjecutarConsultaAsync" disabled="@cargando">
+                    🔄 @(cargando ? "Ejecutando..." : "Consultar")
+                </button>
+            </div>
+        </div>
+
+        <!-- Ficha descriptiva con detalle de tablas cruzadas y propósito -->
+        <div class="mt-3 p-3 bg-light rounded-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+                <span class="badge bg-secondary me-2">@ObtenerTablasCruzadas()</span>
+                <span class="text-secondary small">@ObtenerDescripcionConsulta()</span>
+            </div>
+            <span class="badge bg-dark">@ObtenerCantidadRegistros() registros obtenidos</span>
+        </div>
+    </div>
+
+    @if (errorMensaje != null)
+    {
+        <div class="alert alert-danger">
+            <strong>Error al ejecutar la consulta:</strong> @errorMensaje
+        </div>
+    }
+    else if (cargando)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Consultando base de datos...</span>
+            </div>
+            <p class="mt-2 text-muted">Ejecutando plan de consulta multitabla en SQL Server...</p>
+        </div>
+    }
+    else
+    {
+        <!-- TABLA DINÁMICA SEGÚN LA CONSULTA SELECCIONADA -->
+        <div class="card border-0 shadow-sm p-0 bg-white rounded-3 overflow-hidden">
+            @switch (consultaSeleccionada)
+            {
+                case "c1":
+                    <!-- C1: Consolidado Maestro (6 tablas) -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>N° Factura</th>
+                                    <th>Fecha</th>
+                                    <th>Cliente</th>
+                                    <th>Tipo</th>
+                                    <th>Contacto</th>
+                                    <th>Vendedor</th>
+                                    <th>Carnet</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-center">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in FiltrarC1())
+                                {
+                                    <tr>
+                                        <td class="fw-bold">#@item.NumeroFactura</td>
+                                        <td>@item.Fecha.ToString("yyyy-MM-dd HH:mm")</td>
+                                        <td class="fw-semibold">@item.ClienteNombre</td>
+                                        <td><span class="badge bg-light text-dark border">@item.ClienteTipo</span></td>
+                                        <td class="small text-muted">@item.ClienteContacto</td>
+                                        <td>@item.VendedorNombre</td>
+                                        <td><code>@item.VendedorCarnet</code></td>
+                                        <td class="text-end fw-bold text-success">$ @item.Total.ToString("N2")</td>
+                                        <td class="text-center">
+                                            <span class="badge @(item.Estado == "activa" ? "bg-success" : "bg-danger")">
+                                                @item.Estado
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    break;
+
+                case "c2":
+                    <!-- C2: Ranking Productos (4 tablas) -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Producto</th>
+                                    <th class="text-end">Valor Unitario</th>
+                                    <th class="text-center">Stock</th>
+                                    <th class="text-center">U. Vendidas</th>
+                                    <th class="text-center">Facturas</th>
+                                    <th class="text-end">Total Recaudado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in FiltrarC2())
+                                {
+                                    <tr>
+                                        <td><code>@item.CodigoProducto</code></td>
+                                        <td class="fw-semibold">@item.NombreProducto</td>
+                                        <td class="text-end">$ @item.ValorUnitario.ToString("N2")</td>
+                                        <td class="text-center"><span class="badge bg-secondary">@item.StockActual</span></td>
+                                        <td class="text-center fw-bold text-primary">@item.UnidadesVendidas</td>
+                                        <td class="text-center">@item.TotalFacturasPresente</td>
+                                        <td class="text-end fw-bold text-success">$ @item.TotalRecaudado.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    break;
+
+                case "c3":
+                    <!-- C3: Desempeño Vendedores (5 tablas) -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Carnet</th>
+                                    <th>Vendedor</th>
+                                    <th>Email</th>
+                                    <th class="text-center">Total Facturas</th>
+                                    <th class="text-center">Activas / Anuladas</th>
+                                    <th class="text-end">Monto Total</th>
+                                    <th class="text-end">Ticket Promedio</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in FiltrarC3())
+                                {
+                                    <tr>
+                                        <td>@item.IdVendedor</td>
+                                        <td><code>@item.Carnet</code></td>
+                                        <td class="fw-semibold">@item.NombreVendedor</td>
+                                        <td class="small text-muted">@item.EmailVendedor</td>
+                                        <td class="text-center fw-bold">@item.TotalFacturas</td>
+                                        <td class="text-center">
+                                            <span class="text-success fw-bold">@item.FacturasActivas</span> / 
+                                            <span class="text-danger">@item.FacturasAnuladas</span>
+                                        </td>
+                                        <td class="text-end fw-bold text-success">$ @item.MontoTotalVendido.ToString("N2")</td>
+                                        <td class="text-end text-primary">$ @item.TicketPromedio.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    break;
+
+                case "c4":
+                    <!-- C4: Clientes Alto Valor (5 tablas) -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Titular</th>
+                                    <th>Empresa Asociada</th>
+                                    <th class="text-end">Límite Crédito</th>
+                                    <th class="text-center">Facturas</th>
+                                    <th class="text-center">Variedad Productos</th>
+                                    <th class="text-end">Total Comprado</th>
+                                    <th>Última Compra</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in FiltrarC4())
+                                {
+                                    <tr>
+                                        <td>@item.IdCliente</td>
+                                        <td class="fw-semibold">@item.NombreTitular</td>
+                                        <td><span class="badge bg-light text-dark border">@item.EmpresaAsociada</span></td>
+                                        <td class="text-end">$ @item.CreditoAsignado.ToString("N2")</td>
+                                        <td class="text-center fw-bold">@item.TotalFacturas</td>
+                                        <td class="text-center">@item.VariedadProductosComprados artículos</td>
+                                        <td class="text-end fw-bold text-success">$ @item.MontoTotalComprado.ToString("N2")</td>
+                                        <td class="small text-muted">@(item.FechaUltimaCompra?.ToString("yyyy-MM-dd HH:mm") ?? "N/A")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    break;
+
+                case "c5":
+                    <!-- C5: Stock Crítico (4 tablas) -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Producto</th>
+                                    <th class="text-center">Stock Actual</th>
+                                    <th class="text-end">Valor Unitario</th>
+                                    <th class="text-center">Total Vendido</th>
+                                    <th class="text-center">Nivel de Alerta</th>
+                                    <th>Última Venta</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in FiltrarC5())
+                                {
+                                    <tr>
+                                        <td><code>@item.CodigoProducto</code></td>
+                                        <td class="fw-semibold">@item.NombreProducto</td>
+                                        <td class="text-center fw-bold">@item.StockActual</td>
+                                        <td class="text-end">$ @item.ValorUnitario.ToString("N2")</td>
+                                        <td class="text-center">@item.TotalVendidoHistorico</td>
+                                        <td class="text-center">
+                                            <span class="badge @(item.NivelAlerta == "CRÍTICO" ? "bg-danger" : item.NivelAlerta == "BAJO" ? "bg-warning text-dark" : "bg-success")">
+                                                @item.NivelAlerta
+                                            </span>
+                                        </td>
+                                        <td class="small text-muted">@(item.FechaUltimaVenta?.ToString("yyyy-MM-dd") ?? "Sin ventas")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    break;
+
+                case "c6":
+                    <!-- C6: Auditoría de Seguridad (5 tablas) -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Email Usuario</th>
+                                    <th>Roles Asignados</th>
+                                    <th class="text-center">N° Roles</th>
+                                    <th class="text-center">Rutas Permitidas</th>
+                                    <th>Detalle de Rutas Autorizadas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in FiltrarC6())
+                                {
+                                    <tr>
+                                        <td class="fw-bold">@item.EmailUsuario</td>
+                                        <td><span class="badge bg-primary">@item.RolesAsignados</span></td>
+                                        <td class="text-center">@item.CantidadRoles</td>
+                                        <td class="text-center fw-bold text-success">@item.CantidadRutasPermitidas</td>
+                                        <td class="small text-muted">@item.RutasDetalle</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    break;
+
+                case "c7":
+                    <!-- C7: Renglones Detallados (5 tablas) -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>N° Factura</th>
+                                    <th>Fecha</th>
+                                    <th>Cliente</th>
+                                    <th>Código</th>
+                                    <th>Producto</th>
+                                    <th class="text-center">Cantidad</th>
+                                    <th class="text-end">Precio Unitario</th>
+                                    <th class="text-end">Subtotal Renglón</th>
+                                    <th class="text-end">Total Factura</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in FiltrarC7())
+                                {
+                                    <tr>
+                                        <td class="fw-bold">#@item.NumeroFactura</td>
+                                        <td class="small text-muted">@item.FechaFactura.ToString("yyyy-MM-dd")</td>
+                                        <td>@item.ClienteNombre</td>
+                                        <td><code>@item.CodigoProducto</code></td>
+                                        <td class="fw-semibold">@item.NombreProducto</td>
+                                        <td class="text-center fw-bold">@item.Cantidad</td>
+                                        <td class="text-end">$ @(item.PrecioUnitarioCalculado?.ToString("N2") ?? "0.00")</td>
+                                        <td class="text-end fw-semibold">$ @item.SubtotalRenglon.ToString("N2")</td>
+                                        <td class="text-end fw-bold text-success">$ @item.TotalFactura.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    break;
+
+                case "c8":
+                    <!-- C8: Cartera de Crédito (4 tablas) -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Persona</th>
+                                    <th>Empresa</th>
+                                    <th class="text-end">Límite Crédito</th>
+                                    <th class="text-end">Facturado Activo</th>
+                                    <th class="text-end">Cupo Disponible</th>
+                                    <th class="text-center">Estado Crédito</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in FiltrarC8())
+                                {
+                                    <tr>
+                                        <td>@item.IdCliente</td>
+                                        <td class="fw-semibold">@item.PersonaNombre</td>
+                                        <td>@item.EmpresaNombre</td>
+                                        <td class="text-end fw-bold">$ @item.LimiteCredito.ToString("N2")</td>
+                                        <td class="text-end text-danger">$ @item.TotalFacturadoActivo.ToString("N2")</td>
+                                        <td class="text-end text-success fw-bold">$ @item.CreditoDisponible.ToString("N2")</td>
+                                        <td class="text-center">
+                                            <span class="badge @(item.EstadoCredito == "NORMAL" ? "bg-success" : item.EstadoCredito == "RIESGO ALTO" ? "bg-warning text-dark" : "bg-danger")">
+                                                @item.EstadoCredito
+                                            </span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    break;
+
+                case "c9":
+                    <!-- C9: Clientes Inactivos (4 tablas) -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID Cliente</th>
+                                    <th>Titular</th>
+                                    <th>Email</th>
+                                    <th>Teléfono</th>
+                                    <th>Empresa</th>
+                                    <th class="text-end">Crédito Asignado</th>
+                                    <th class="text-center">Compras</th>
+                                    <th class="text-center">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in FiltrarC9())
+                                {
+                                    <tr>
+                                        <td>@item.IdCliente</td>
+                                        <td class="fw-semibold">@item.NombrePersona</td>
+                                        <td class="small text-muted">@item.EmailContacto</td>
+                                        <td class="small">@item.TelefonoContacto</td>
+                                        <td>@item.NombreEmpresa</td>
+                                        <td class="text-end">$ @item.Credito.ToString("N2")</td>
+                                        <td class="text-center">@item.FacturasAsociadas</td>
+                                        <td class="text-center"><span class="badge bg-secondary">@item.EstadoActividad</span></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    break;
+
+                case "c10":
+                    <!-- C10: Facturas Anuladas (5 tablas) -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>N° Factura</th>
+                                    <th>Fecha Anulación</th>
+                                    <th>Vendedor Responsable</th>
+                                    <th>Carnet</th>
+                                    <th>ID Cliente Afectado</th>
+                                    <th class="text-center">Renglones Revertidos</th>
+                                    <th class="text-end">Monto Anulado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in FiltrarC10())
+                                {
+                                    <tr>
+                                        <td class="fw-bold text-danger">#@item.NumeroFactura</td>
+                                        <td>@item.FechaFactura.ToString("yyyy-MM-dd HH:mm")</td>
+                                        <td class="fw-semibold">@item.VendedorResponsable</td>
+                                        <td><code>@item.CarnetVendedor</code></td>
+                                        <td>@item.IdClienteAfectado</td>
+                                        <td class="text-center fw-bold">@item.CantidadRenglonesRevertidos items</td>
+                                        <td class="text-end fw-bold text-danger">$ @item.MontoAnulado.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    break;
+            }
+        </div>
+    }
+}
+
+@code {
+    // Código C# de control del componente Blazor
+    private string consultaSeleccionada = "c1"; // Valor por defecto: Consulta 1
+    private string filtroTexto = "";            // Texto de búsqueda en vivo digitado por el usuario
+    private bool cargando = false;              // Estado para deshabilitar controles y mostrar spinner
+    private string? errorMensaje;
+
+    // Colecciones en memoria para cada una de las 10 consultas tipadas
+    private List<ConsultaFacturaDetalladaDto> listaC1 = new();
+    private List<ConsultaRankingProductosDto> listaC2 = new();
+    private List<ConsultaRendimientoVendedoresDto> listaC3 = new();
+    private List<ConsultaClientesAltoValorDto> listaC4 = new();
+    private List<ConsultaStockCriticoDto> listaC5 = new();
+    private List<ConsultaAuditoriaSeguridadDto> listaC6 = new();
+    private List<ConsultaRenglonesFacturaDto> listaC7 = new();
+    private List<ConsultaCarteraCreditoDto> listaC8 = new();
+    private List<ConsultaClientesInactivosDto> listaC9 = new();
+    private List<ConsultaFacturasAnuladasDto> listaC10 = new();
+
+    /// <summary>
+    /// Ciclo de vida Blazor: Ejecuta automáticamente la primera consulta al montar el componente si hay sesión activa.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        if (EstadoSesion.EstaAutenticado)
+        {
+            await EjecutarConsultaAsync();
+        }
+    }
+
+    /// <summary>
+    /// Invoca el endpoint HTTP correspondiente en la API según la opción elegida en el desplegable.
+    /// </summary>
+    private async Task EjecutarConsultaAsync()
+    {
+        cargando = true;
+        errorMensaje = null;
+        try
+        {
+            switch (consultaSeleccionada)
+            {
+                case "c1": listaC1 = await ServicioConsultas.ObtenerC1Async(); break;
+                case "c2": listaC2 = await ServicioConsultas.ObtenerC2Async(); break;
+                case "c3": listaC3 = await ServicioConsultas.ObtenerC3Async(); break;
+                case "c4": listaC4 = await ServicioConsultas.ObtenerC4Async(); break;
+                case "c5": listaC5 = await ServicioConsultas.ObtenerC5Async(); break;
+                case "c6": listaC6 = await ServicioConsultas.ObtenerC6Async(); break;
+                case "c7": listaC7 = await ServicioConsultas.ObtenerC7Async(); break;
+                case "c8": listaC8 = await ServicioConsultas.ObtenerC8Async(); break;
+                case "c9": listaC9 = await ServicioConsultas.ObtenerC9Async(); break;
+                case "c10": listaC10 = await ServicioConsultas.ObtenerC10Async(); break;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMensaje = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    /// <summary>
+    /// Ayudante visual: Retorna la lista de tablas que cruza la consulta activa para que el docente lo verifique de inmediato.
+    /// </summary>
+    private string ObtenerTablasCruzadas() => consultaSeleccionada switch
+    {
+        "c1" => "6 tablas: factura + cliente + persona + empresa + vendedor + persona",
+        "c2" => "4 tablas: producto + productosporfactura + factura + cliente",
+        "c3" => "5 tablas: vendedor + persona + factura + productosporfactura + producto",
+        "c4" => "5 tablas: cliente + persona + empresa + factura + productosporfactura",
+        "c5" => "4 tablas: producto + productosporfactura + factura + vendedor",
+        "c6" => "5 tablas: usuario + rol_usuario + rol + rutarol + ruta",
+        "c7" => "5 tablas: factura + productosporfactura + producto + cliente + persona",
+        "c8" => "4 tablas: cliente + persona + empresa + factura",
+        "c9" => "4 tablas: cliente + persona + empresa + factura",
+        "c10" => "5 tablas: factura + vendedor + persona + cliente + productosporfactura",
+        _ => ""
+    };
+
+    /// <summary>
+    /// Retorna la explicación conceptual del propósito de la consulta activa.
+    /// </summary>
+    private string ObtenerDescripcionConsulta() => consultaSeleccionada switch
+    {
+        "c1" => "Reporte 360° unificando clientes personas/empresas, montos y vendedores.",
+        "c2" => "Clasificación ABC de inventario por mayor demanda y recaudación neta.",
+        "c3" => "Productividad comercial, porcentaje de efectividad y ticket promedio.",
+        "c4" => "Segmentación VIP para clientes recurrentes de mayor volumen de compras.",
+        "c5" => "Semáforo preventivo de quiebre de stock basado en ventas históricas.",
+        "c6" => "Auditoría de seguridad y trazabilidad de permisos efectivos asignados.",
+        "c7" => "Desglose transaccional ítem por ítem con validación de precios y subtotales.",
+        "c8" => "Exposición financiera: Límite de crédito vs facturación acumulada activa.",
+        "c9" => "Clientes registrados que nunca han generado facturas para reactivación.",
+        "c10" => "Auditoría de pérdidas por facturas anuladas y productos revertidos.",
+        _ => ""
+    };
+
+    /// <summary>
+    /// Calcula el conteo de registros resultantes aplicando el filtro de texto activo.
+    /// </summary>
+    private int ObtenerCantidadRegistros() => consultaSeleccionada switch
+    {
+        "c1" => FiltrarC1().Count(),
+        "c2" => FiltrarC2().Count(),
+        "c3" => FiltrarC3().Count(),
+        "c4" => FiltrarC4().Count(),
+        "c5" => FiltrarC5().Count(),
+        "c6" => FiltrarC6().Count(),
+        "c7" => FiltrarC7().Count(),
+        "c8" => FiltrarC8().Count(),
+        "c9" => FiltrarC9().Count(),
+        "c10" => FiltrarC10().Count(),
+        _ => 0
+    };
+
+    // Funciones LINQ de filtrado reactivo en el cliente:
+    private IEnumerable<ConsultaFacturaDetalladaDto> FiltrarC1() =>
+        string.IsNullOrWhiteSpace(filtroTexto) ? listaC1 :
+        listaC1.Where(x => x.ClienteNombre.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.VendedorNombre.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.NumeroFactura.ToString().Contains(filtroTexto));
+
+    private IEnumerable<ConsultaRankingProductosDto> FiltrarC2() =>
+        string.IsNullOrWhiteSpace(filtroTexto) ? listaC2 :
+        listaC2.Where(x => x.NombreProducto.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.CodigoProducto.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<ConsultaRendimientoVendedoresDto> FiltrarC3() =>
+        string.IsNullOrWhiteSpace(filtroTexto) ? listaC3 :
+        listaC3.Where(x => x.NombreVendedor.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.Carnet.ToString().Contains(filtroTexto));
+
+    private IEnumerable<ConsultaClientesAltoValorDto> FiltrarC4() =>
+        string.IsNullOrWhiteSpace(filtroTexto) ? listaC4 :
+        listaC4.Where(x => x.NombreTitular.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.EmpresaAsociada.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<ConsultaStockCriticoDto> FiltrarC5() =>
+        string.IsNullOrWhiteSpace(filtroTexto) ? listaC5 :
+        listaC5.Where(x => x.NombreProducto.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.CodigoProducto.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.NivelAlerta.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<ConsultaAuditoriaSeguridadDto> FiltrarC6() =>
+        string.IsNullOrWhiteSpace(filtroTexto) ? listaC6 :
+        listaC6.Where(x => x.EmailUsuario.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.RolesAsignados.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<ConsultaRenglonesFacturaDto> FiltrarC7() =>
+        string.IsNullOrWhiteSpace(filtroTexto) ? listaC7 :
+        listaC7.Where(x => x.NombreProducto.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.ClienteNombre.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.NumeroFactura.ToString().Contains(filtroTexto));
+
+    private IEnumerable<ConsultaCarteraCreditoDto> FiltrarC8() =>
+        string.IsNullOrWhiteSpace(filtroTexto) ? listaC8 :
+        listaC8.Where(x => x.PersonaNombre.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.EmpresaNombre.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.EstadoCredito.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<ConsultaClientesInactivosDto> FiltrarC9() =>
+        string.IsNullOrWhiteSpace(filtroTexto) ? listaC9 :
+        listaC9.Where(x => x.NombrePersona.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.NombreEmpresa.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                           x.EmailContacto.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase));
+
+    private IEnumerable<ConsultaFacturasAnuladasDto> FiltrarC10() =>
+        string.IsNullOrWhiteSpace(filtroTexto) ? listaC10 :
+        listaC10.Where(x => x.VendedorResponsable.Contains(filtroTexto, StringComparison.OrdinalIgnoreCase) ||
+                            x.NumeroFactura.ToString().Contains(filtroTexto));
+}

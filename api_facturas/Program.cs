@@ -59,6 +59,10 @@ builder.Services.Configure<ConfiguracionJwt>(builder.Configuration.GetSection("J
 builder.Services.AddScoped<IRepositorioAcceso, RepositorioAccesoSqlServer>();
 builder.Services.AddScoped<IServicioSesion, ServicioSesion>();
 
+// Registros de la Versión 4 (Consultas Multitabla y Tablero de Control)
+builder.Services.AddScoped<IRepositorioConsultas>(_ => new RepositorioConsultasSqlServer(cadenaConexion));
+builder.Services.AddScoped<IServicioConsultas, ServicioConsultas>();
+
 // ==============================================================
 // 2. CONFIGURACIÓN DE AUTENTICACIÓN JWT (VERSIÓN 3)
 // ==============================================================
@@ -183,7 +187,7 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "API Facturas v3");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "API Facturas v4");
     c.RoutePrefix = "swagger";
 });
 
@@ -195,8 +199,8 @@ app.UseAuthorization();
 app.MapGet("/", () => Results.Ok(new
 {
     mensaje = "API Facturas funcionando",
-    version = "v3",
-    contratos = "docs/spec_kit/versiones/v3_control_acceso/6_contracts.md"
+    version = "v4",
+    contratos = "docs/v4_reportes_dashboard/6_contracts.md"
 })).AllowAnonymous();
 
 app.MapControllers();

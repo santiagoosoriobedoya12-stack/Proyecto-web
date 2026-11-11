@@ -34,15 +34,15 @@ $$v1 \subset v2 \subset v3 \subset v4$$
 
 Esta matriz resume exactamente **qué tiene de diferente cada versión** para facilitar la explicación técnica y la sustentación:
 
-| Dimensión | Versión 1 (`v1_sin_fk`) | Versión 2 (`v2_con_fk`) | Versión 3 (`v3_seguridad_rbac`) |
-|---|---|---|---|
-| **Propósito Principal** | Establecer la arquitectura limpia en 3 capas (Controlador-Servicio-Repositorio) con tablas planas. | Introducir la integridad referencial, lógica delegada en base de datos (Stored Procedures y Triggers) y transacciones contables. | Introducir la capa transversal de seguridad, protegiendo todos los endpoints y vistas según identidad y roles. |
-| **Tablas que Gestiona** | **6 tablas independientes:**<br>• `producto`<br>• `persona`<br>• `empresa`<br>• `rol`<br>• `ruta`<br>• `usuario` | **Las 12 tablas completas:**<br>*(las 6 de la v1)* +<br>• `cliente`<br>• `vendedor`<br>• `factura`<br>• `productosporfactura`<br>• `rol_usuario`<br>• `rutarol`<br>+ Recurso `usuario-con-roles` | **Las 12 tablas protegidas:**<br>Aplica control de acceso sobre las 12 tablas sin modificar sus modelos de datos. |
-| **¿Dónde vive la lógica?** | En C# (Servicios de dominio). SQL Server solo almacena datos con sentencias SQL directas ejecutadas vía Dapper. | **En SQL Server:** Los subtotales, totales, validación de stock y anulación contable los ejecutan **Procedimientos Almacenados y un Trigger**. C# solo orquesta. | **En Middlewares e Interceptores:** La validación de credenciales y autorización por rutas se ejecuta antes de que la petición toque los controladores. |
-| **Códigos HTTP** | • `200 OK`<br>• `201 Created`<br>• `204 No Content`<br>• `400 Bad Request`<br>• `404 Not Found`<br>• `422 Unprocessable`<br>• `500 Server Error` | **Agrega `409 Conflict`:**<br>Para violaciones de clave foránea (SqlException 547) y registros duplicados en tablas puente (SqlException 2627/2601). | **Agrega `401 Unauthorized` y `403 Forbidden`:**<br>• `401`: Token ausente, expirado o credenciales inválidas.<br>• `403`: Usuario autenticado cuyo rol no tiene permiso sobre la ruta solicitada. |
-| **Peticiones POST / PUT** | El cliente envía todos los datos requeridos por la tabla. | En `factura`, el cliente **NO envía totales, subtotales ni precio unitario**. La base de datos es la única fuente de verdad contable. | Las peticiones exigen encabezado de autorización: `Authorization: Bearer <token>`. |
-| **Interfaz en Blazor** | Vistas CRUD independientes. Campos de texto planos donde los identificadores se digitan manualmente. | • Desplegables dinámicos (`<select>`) alimentados por la API.<br>• Formulario Maestro-Detalle interactivo en memoria para emitir facturas.<br>• Ficha de factura.<br>• Carga paralela con `Task.WhenAll`. | • Pantalla de Login obligatoria.<br>• Menú dinámico que oculta opciones según el rol.<br>• Redirección automática ante sesiones expiradas. |
-| **Seguridad / Acceso** | Público y anónimo. | Público y anónimo (con integridad referencial validada). | **Privado y autenticado:** Gestión de tokens JWT, Claims y verificación de roles vía `verificar_acceso_ruta`. |
+| Dimensión | Versión 1 (`v1_sin_fk`) | Versión 2 (`v2_con_fk`) | Versión 3 (`v3_seguridad_rbac`) | Versión 4 (`v4_reportes_dashboard`) |
+|---|---|---|---|---|
+| **Propósito Principal** | Establecer la arquitectura limpia en 3 capas (Controlador-Servicio-Repositorio) con tablas planas. | Introducir la integridad referencial, lógica delegada en base de datos (Stored Procedures y Triggers) y transacciones contables. | Introducir la capa transversal de seguridad, protegiendo todos los endpoints y vistas según identidad y roles. | Explotar analíticamente las 12 tablas con 10 consultas multitabla complejas (4+ tablas), tablero de control y marca corporativa. |
+| **Tablas que Gestiona** | **6 tablas independientes:**<br>• `producto`<br>• `persona`<br>• `empresa`<br>• `rol`<br>• `ruta`<br>• `usuario` | **Las 12 tablas completas:**<br>*(las 6 de la v1)* +<br>• `cliente`<br>• `vendedor`<br>• `factura`<br>• `productosporfactura`<br>• `rol_usuario`<br>• `rutarol`<br>+ Recurso `usuario-con-roles` | **Las 12 tablas protegidas:**<br>Aplica control de acceso sobre las 12 tablas sin modificar sus modelos de datos. | **Las 12 tablas cruzadas:**<br>Consultas analíticas cruzando de 4 a 6 tablas relacionales simultáneamente. |
+| **¿Dónde vive la lógica?** | En C# (Servicios de dominio). SQL Server solo almacena datos con sentencias SQL directas ejecutadas vía Dapper. | **En SQL Server:** Los subtotales, totales, validación de stock y anulación contable los ejecutan **Procedimientos Almacenados y un Trigger**. C# solo orquesta. | **En Middlewares e Interceptores:** La validación de credenciales y autorización por rutas se ejecuta antes de que la petición toque los controladores. | **En Agregaciones SQL de Alto Rendimiento:** Funciones de agregación (`SUM`, `AVG`, `COUNT`), `GROUP BY`, `HAVING` y `STRING_AGG` ejecutadas en el motor relacional. |
+| **Códigos HTTP** | • `200 OK`<br>• `201 Created`<br>• `204 No Content`<br>• `400 Bad Request`<br>• `404 Not Found`<br>• `422 Unprocessable`<br>• `500 Server Error` | **Agrega `409 Conflict`:**<br>Para violaciones de clave foránea (SqlException 547) y registros duplicados en tablas puente (SqlException 2627/2601). | **Agrega `401 Unauthorized` y `403 Forbidden`:**<br>• `401`: Token ausente, expirado o credenciales inválidas.<br>• `403`: Usuario autenticado cuyo rol no tiene permiso sobre la ruta solicitada. | **Mantiene `200 OK`, `401` y `403`:**<br>Endpoints de reportes analíticos fuertemente tipados y protegidos por la seguridad transversal. |
+| **Peticiones POST / PUT** | El cliente envía todos los datos requeridos por la tabla. | En `factura`, el cliente **NO envía totales, subtotales ni precio unitario**. La base de datos es la única fuente de verdad contable. | Las peticiones exigen encabezado de autorización: `Authorization: Bearer <token>`. | Consultas de lectura (`GET`) con parámetros opcionales y token de autorización. |
+| **Interfaz en Blazor** | Vistas CRUD independientes. Campos de texto planos donde los identificadores se digitan manualmente. | • Desplegables dinámicos (`<select>`) alimentados por la API.<br>• Formulario Maestro-Detalle interactivo en memoria para emitir facturas.<br>• Ficha de factura.<br>• Carga paralela con `Task.WhenAll`. | • Pantalla de Login obligatoria.<br>• Menú dinámico que oculta opciones según el rol.<br>• Redirección automática ante sesiones expiradas. | • **Dashboard Gerencial:** 4 tarjetas KPI, ranking de productos y gráficos de progreso en CSS.<br>• **Centro de Consultas:** Explorador interactivo de las 10 consultas multitabla. |
+| **Seguridad / Acceso** | Público y anónimo. | Público y anónimo (con integridad referencial validada). | **Privado y autenticado:** Gestión de tokens JWT, Claims y verificación de roles vía `verificar_acceso_ruta`. | **Privado y autenticado:** Acceso restringido al personal autorizado según perfil comercial o gerencial. |
 
 ---
 
@@ -117,6 +117,19 @@ Cada versión cuenta con su propio paquete documental completo y aislado:
 
 ---
 
+### 📁 [Versión 4 — Reportes, Consultas Multitabla y Dashboard (`docs/v4_reportes_dashboard/`)](v4_reportes_dashboard/README.md)
+- [2_spec.md](v4_reportes_dashboard/2_spec.md): Especificación funcional de las 10 consultas multitabla complejas (4+ tablas), dashboard y marca.
+- [3_plan.md](v4_reportes_dashboard/3_plan.md): Plan técnico: Repositorio Dapper de lectura rápida, DTOs inmutables y visualización en Blazor.
+- [4_research.md](v4_reportes_dashboard/4_research.md): Investigación técnica: Dapper vs EF Core, agregaciones SQL en el motor y manual de marca.
+- [5_data_model.md](v4_reportes_dashboard/5_data_model.md): Consultas SQL analíticas completas cruzando entre 4 y 6 tablas de `bdfacturas`.
+- [6_contracts.md](v4_reportes_dashboard/6_contracts.md): Contratos OpenAPI/REST de `/api/consultas/c1..c10` y `/api/dashboard/kpis`.
+- [7_quickstart.md](v4_reportes_dashboard/7_quickstart.md): Guía de arranque, smoke test con curl y validación del dashboard.
+- [8_tasks.md](v4_reportes_dashboard/8_tasks.md): Plan de tareas ordenadas fase a fase.
+- [prompts.md](v4_reportes_dashboard/prompts.md): Bitácora de prompts de IA para el diseño SQL, backend, frontend y estilos.
+- [README.md](v4_reportes_dashboard/README.md): Resumen ejecutivo de la versión 4.
+
+---
+
 ## 5. Guía Rápida para Sustentación ante Docentes
 
 Al momento de defender el proyecto, tenga presentes estos conceptos clave:
@@ -130,3 +143,10 @@ Al momento de defender el proyecto, tenga presentes estos conceptos clave:
    - **409 Conflict:** La petición está bien formada sintácticamente, pero entra en conflicto con el estado actual de la base de datos (ej. violar una llave foránea porque el padre no existe, o intentar registrar un duplicado).
 4. **¿Por qué en Blazor usamos `Task.WhenAll`?**
    - Si una pantalla necesita cargar personas y empresas de la API de forma secuencial (`await Servicio1; await Servicio2`), los tiempos de espera se suman. Con `Task.WhenAll`, ambas peticiones viajan concurrentemente, reduciendo el tiempo de carga a una fracción.
+
+---
+
+## 🎓 [Guía Completa de Retroalimentación y Preguntas de Sustentación (Leer Aquí)](RETROALIMENTACION_Y_SUSTENTACION.md)
+
+Para un desglose completo de la retroalimentación técnica, justificaciones arquitectónicas versión por versión y las 10 preguntas clave de examen resueltas, consulta el documento:
+👉 **[docs/RETROALIMENTACION_Y_SUSTENTACION.md](RETROALIMENTACION_Y_SUSTENTACION.md)**

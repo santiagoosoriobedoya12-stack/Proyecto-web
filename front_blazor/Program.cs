@@ -100,6 +100,14 @@ builder.Services.AddHttpClient<ServicioSesion>(cliente =>
     cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
 });
 
+// ==============================================================
+// REGISTROS VERSIÓN 4 (REPORTES, CONSULTAS MULTITABLA Y DASHBOARD)
+// ==============================================================
+builder.Services.AddHttpClient<ServicioConsultas>(cliente =>
+{
+    cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
+});
+
 var app = builder.Build();
 
 // ==============================================================

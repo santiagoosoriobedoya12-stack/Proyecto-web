@@ -1,0 +1,268 @@
+@page "/dashboard"
+@using FrontFacturas.Modelos.Consultas
+@using FrontFacturas.Servicios
+@inject ServicioConsultas ServicioConsultas
+@inject EstadoSesion EstadoSesion
+@inject NavigationManager Navigation
+
+<PageTitle>Dashboard Gerencial — FactuCorp ERP v4</PageTitle>
+
+<!-- ENCABEZADO PRINCIPAL DE LA VISTA -->
+<div class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+    <div>
+        <h2 class="h3 fw-bold text-dark mb-1">📊 Tablero de Control y Analítica de Negocio</h2>
+        <p class="text-muted small mb-0">Métricas consolidadas en tiempo real cruzando las 12 tablas de facturación.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <!-- Botón para refrescar concurrentemente los datos llamando a la API -->
+        <button class="btn btn-outline-primary btn-sm" @onclick="CargarDatosAsync" disabled="@cargando">
+            🔄 @(cargando ? "Actualizando..." : "Refrescar KPIs")
+        </button>
+        <!-- Enlace rápido hacia el explorador de las 10 consultas -->
+        <a href="consultas" class="btn btn-primary btn-sm">
+            📈 Ir a Consultas Multitabla
+        </a>
+    </div>
+</div>
+
+<!-- VALIDACIÓN DE SESIÓN (Versión 3 integrada en la Versión 4) -->
+@if (!EstadoSesion.EstaAutenticado)
+{
+    <div class="alert alert-warning d-flex justify-content-between align-items-center">
+        <div>
+            <strong>⚠️ Acceso Restringido:</strong> Debes iniciar sesión para visualizar los indicadores gerenciales y la analítica de ventas.
+        </div>
+        <a href="sesion" class="btn btn-warning btn-sm">Iniciar Sesión</a>
+    </div>
+}
+else if (errorMensaje != null)
+{
+    <!-- Notificación visual en caso de fallo HTTP de la API -->
+    <div class="alert alert-danger">
+        <strong>Error al cargar métricas:</strong> @errorMensaje
+    </div>
+}
+else if (cargando)
+{
+    <!-- Animación de carga mientras el servidor SQL procesa las agregaciones -->
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Cargando tablero...</span>
+        </div>
+        <p class="mt-2 text-muted">Procesando agregaciones analíticas en SQL Server...</p>
+    </div>
+}
+else if (kpis != null)
+{
+    <!-- BLOQUE 1: 4 TARJETAS KPI EJECUTIVAS EN TIEMPO REAL -->
+    <div class="row g-3 mb-4">
+        <!-- KPI 1: Ventas Totales Activas -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card h-100 border-0 shadow-sm rounded-3 bg-white p-3 border-start border-4 border-success tarjeta-kpi">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small text-uppercase fw-semibold">Ventas Totales</span>
+                        <h3 class="fw-bold text-dark mt-1 mb-0">$ @kpis.VentasTotales.ToString("N2")</h3>
+                        <span class="badge bg-success-subtle text-success mt-2">Facturas Activas</span>
+                    </div>
+                    <div class="fs-1 text-success opacity-50">💰</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 2: Facturas Emitidas (Activas vs Anuladas) -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card h-100 border-0 shadow-sm rounded-3 bg-white p-3 border-start border-4 border-primary tarjeta-kpi">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small text-uppercase fw-semibold">Facturas Emitidas</span>
+                        <h3 class="fw-bold text-dark mt-1 mb-0">@kpis.TotalFacturas</h3>
+                        <div class="small mt-2">
+                            <span class="text-success fw-bold">@kpis.FacturasActivas activas</span> · 
+                            <span class="text-danger">@kpis.FacturasAnuladas anuladas</span>
+                        </div>
+                    </div>
+                    <div class="fs-1 text-primary opacity-50">🧾</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 3: Clientes y Vendedores Registrados -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card h-100 border-0 shadow-sm rounded-3 bg-white p-3 border-start border-4 border-info tarjeta-kpi">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small text-uppercase fw-semibold">Clientes & Fuerza Comercial</span>
+                        <h3 class="fw-bold text-dark mt-1 mb-0">@kpis.TotalClientes <small class="fs-6 text-muted">clientes</small></h3>
+                        <span class="small text-muted mt-2 d-block">@kpis.TotalVendedores vendedores activos</span>
+                    </div>
+                    <div class="fs-1 text-info opacity-50">👥</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI 4: Alerta Preventiva de Stock Crítico (<= 15 unidades) -->
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card h-100 border-0 shadow-sm rounded-3 bg-white p-3 border-start border-4 @(kpis.ProductosStockCritico > 0 ? "border-danger" : "border-secondary") tarjeta-kpi">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-muted small text-uppercase fw-semibold">Alerta de Inventario</span>
+                        <h3 class="fw-bold @(kpis.ProductosStockCritico > 0 ? "text-danger" : "text-dark") mt-1 mb-0">
+                            @kpis.ProductosStockCritico
+                        </h3>
+                        <span class="small text-muted mt-2 d-block">de @kpis.TotalProductos artículos (stock &le; 15)</span>
+                    </div>
+                    <div class="fs-1 text-danger opacity-50">⚠️</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BLOQUE 2: RANKING VISUAL Y RENDIMIENTO FINANCIERO -->
+    <div class="row g-3 mb-4">
+        <!-- Sub-bloque 2.1: Tabla interactiva del Top 5 de productos (Consulta C2) -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-3 p-4 bg-white h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold text-dark mb-0">🏆 Top 5 Productos con Mayor Recaudación (Consulta C2)</h5>
+                    <span class="badge bg-primary">Ranking de Ventas</span>
+                </div>
+                
+                @if (topProductos.Count == 0)
+                {
+                    <p class="text-muted small my-3">No hay productos con ventas registradas en facturas activas.</p>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Producto</th>
+                                    <th class="text-center">Stock</th>
+                                    <th class="text-center">U. Vendidas</th>
+                                    <th class="text-end">Total Recaudado</th>
+                                    <th class="text-center" style="width: 140px;">Impacto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    // Cálculo de proporción para las barras visuales CSS sin librerías externas
+                                    decimal maxRecaudado = topProductos.Max(p => p.TotalRecaudado);
+                                    if (maxRecaudado <= 0) maxRecaudado = 1;
+                                }
+                                @foreach (var prod in topProductos.Take(5))
+                                {
+                                    var porcentaje = (int)((prod.TotalRecaudado / maxRecaudado) * 100);
+                                    <tr>
+                                        <td><code>@prod.CodigoProducto</code></td>
+                                        <td class="fw-semibold">@prod.NombreProducto</td>
+                                        <td class="text-center">
+                                            <span class="badge @(prod.StockActual <= 10 ? "bg-danger" : "bg-secondary")">
+                                                @prod.StockActual
+                                            </span>
+                                        </td>
+                                        <td class="text-center fw-bold">@prod.UnidadesVendidas</td>
+                                        <td class="text-end fw-bold text-success">$ @prod.TotalRecaudado.ToString("N2")</td>
+                                        <td>
+                                            <!-- Barra de progreso visual con porcentaje calculado -->
+                                            <div class="progress" style="height: 8px;">
+                                                <div class="progress-bar bg-success" role="progressbar" style="width: @porcentaje%;" aria-valuenow="@porcentaje" aria-valuemin="0" aria-valuemax="100"></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Sub-bloque 2.2: Ficha ejecutiva de salud comercial y ticket promedio -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-3 p-4 bg-white h-100">
+                <h5 class="fw-bold text-dark mb-3">📈 Rendimiento Financiero</h5>
+                <ul class="list-group list-group-flush mb-3">
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-muted">Ticket Promedio por Factura</span>
+                        <span class="fw-bold text-dark">$ @kpis.TicketPromedio.ToString("N2")</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-muted">Tasa de Efectividad</span>
+                        <span class="badge bg-success">
+                            @(kpis.TotalFacturas > 0 ? ((kpis.FacturasActivas * 100) / kpis.TotalFacturas) : 0)% Aprobadas
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                        <span class="text-muted">Catálogo en Inventario</span>
+                        <span class="fw-bold text-dark">@kpis.TotalProductos registrados</span>
+                    </li>
+                </ul>
+
+                <div class="p-3 bg-light rounded-3 mt-auto">
+                    <div class="small fw-bold text-secondary mb-1">💡 Análisis Automático:</div>
+                    <div class="small text-muted">
+                        El sistema mantiene @kpis.FacturasActivas facturas operativas activas. 
+                        @if (kpis.ProductosStockCritico > 0)
+                        {
+                            <span class="text-danger fw-semibold">Atención: Hay @kpis.ProductosStockCritico artículos que requieren reposición inmediata.</span>
+                        }
+                        else
+                        {
+                            <span class="text-success fw-semibold">El inventario se encuentra en niveles saludables.</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // Variables de estado del componente Blazor
+    private DashboardKpisDto? kpis;
+    private List<ConsultaRankingProductosDto> topProductos = new();
+    private bool cargando = true;
+    private string? errorMensaje;
+
+    /// <summary>
+    /// Ciclo de vida: Al inicializar el componente, dispara la carga asíncrona de datos desde la API.
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatosAsync();
+    }
+
+    /// <summary>
+    /// Carga concurrente con Task.WhenAll:
+    /// Ejecuta en paralelo la obtención de KPIs y el Ranking de Productos para reducir a la mitad la latencia de red.
+    /// </summary>
+    private async Task CargarDatosAsync()
+    {
+        cargando = true;
+        errorMensaje = null;
+        try
+        {
+            if (EstadoSesion.EstaAutenticado)
+            {
+                var kpisTask = ServicioConsultas.ObtenerDashboardKpisAsync();
+                var prodsTask = ServicioConsultas.ObtenerC2Async();
+
+                // Disparo paralelo de ambas tareas HTTP concurrentes
+                await Task.WhenAll(kpisTask, prodsTask);
+                kpis = await kpisTask;
+                topProductos = await prodsTask;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMensaje = ex.Message;
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+}

@@ -72,3 +72,41 @@
     font-weight: 600;
 }
 
+/* ==============================================================
+   Versión 4: Manual de Marca e Identidad Corporativa (FactuCorp)
+   ============================================================== */
+:root {
+    --fc-primary: #1e3a8a;
+    --fc-navy: #0f172a;
+    --fc-slate: #1e293b;
+    --fc-emerald: #059669;
+    --fc-amber: #d97706;
+    --fc-bg: #f8fafc;
+}
+
+body {
+    background-color: var(--fc-bg);
+    color: #334155;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.navbar-dark.bg-dark {
+    background-color: var(--fc-navy) !important;
+    border-bottom: 2px solid #2563eb;
+}
+
+.tarjeta-kpi {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tarjeta-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.badge-outline-primary {
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+    background-color: #eff6ff;
+}
+
