@@ -2,7 +2,7 @@
 
 > | | |
 > |---|---|
-> | **La ruta** | [0_mapa_versiones.md](../0_mapa_versiones.md) |
+> | **La ruta** | [Mapa de versiones](../README.md) |
 > | **Lo anterior** | [v1](../v1_sin_fk/6_contracts.md) — **sigue vigente sin un solo cambio** |
 > | **La API** | `http://localhost:8035` · Swagger en `/swagger` |
 > | **La interfaz gráfica** | `http://localhost:8099` |

@@ -1,28 +1,28 @@
-﻿# Contratos HTTP ÔÇö Versi├│n 1: seis recursos ├ù seis endpoints
+# Contratos HTTP — Versión 1: seis recursos × seis endpoints
 
-> **Versi├│n 1** ┬À Base: `http://localhost:8032`. Estos contratos se cumplen
-> **al pie de la letra** (constituci├│n, Art├¡culo 7): mismos verbos, rutas,
-> c├│digos y formatos.
+> **Versión 1** · Base: `http://localhost:8032`. Estos contratos se cumplen
+> **al pie de la letra** (constitución, Artículo 7): mismos verbos, rutas,
+> códigos y formatos.
 
 ---
 
 ## 0. Convenciones globales
 
-- Lecturas con **envoltura**: `{tabla, limite, total, datos:[ÔÇª]}`.
-- Errores SIEMPRE `{estado, mensaje, detalle}`; el 422 lleva adem├ís
-  `errores:[ÔÇª]` (la lista de mensajes de la validaci├│n de la petici├│n).
+- Lecturas con **envoltura**: `{tabla, limite, total, datos:[…]}`.
+- Errores SIEMPRE `{estado, mensaje, detalle}`; el 422 lleva además
+  `errores:[…]` (la lista de mensajes de la validación de la petición).
 
-| Situaci├│n | HTTP |
+| Situación | HTTP |
 |---|---|
-| Body inv├ílido seg├║n la **petici├│n del verbo** | **422** con `errores:[ÔÇª]` |
-| Regla de negocio rota (l├¡mite Ôëñ 0, PATCH sin campos) | **400** |
+| Body inválido según la **petición del verbo** | **422** con `errores:[…]` |
+| Regla de negocio rota (límite ≤ 0, PATCH sin campos) | **400** |
 | El recurso no existe | **404** |
 | La BD rechaza (PK duplicada) o falla | **500** (error del motor en `detalle`) |
 
 > ## Los SEIS recursos de la v1
 >
 > Lo que sigue documenta `producto` **en detalle**. Los otros cinco
-> ÔÇö`empresa`, `persona`, `rol`, `ruta`, `usuario`ÔÇö tienen **exactamente el
+> —`empresa`, `persona`, `rol`, `ruta`, `usuario`— tienen **exactamente el
 > mismo contrato**, cambiando la ruta y los campos:
 >
 > | Recurso | Ruta base | Clave | Campos del body |
@@ -35,12 +35,12 @@
 > | `usuario` | `/api/usuario` | `email` (texto) | `contrasena` |
 >
 > **Las dos de llave `IDENTITY` tienen una diferencia que importa:** el `POST`
-> **no manda el `id`** ÔÇölo genera la baseÔÇö, as├¡ que su petici├│n de creaci├│n no
-> lo lleva. Pedirlo obligar├¡a al cliente a inventar una llave.
+> **no manda el `id`** —lo genera la base—, así que su petición de creación no
+> lo lleva. Pedirlo obligaría al cliente a inventar una llave.
 >
-> **Son 36 endpoints** (seis recursos ├ù seis verbos) m├ís el de diagn├│stico.
+> **Son 36 endpoints** (seis recursos × seis verbos) más el de diagnóstico.
 
-## 1. `GET /` ÔÇö Diagn├│stico
+## 1. `GET /` — Diagnóstico
 
 ```json
 {
@@ -50,75 +50,75 @@
 }
 ```
 
-Adem├ís: `GET /swagger` abre la **documentaci├│n interactiva** (Swagger UI).
+Además: `GET /swagger` abre la **documentación interactiva** (Swagger UI).
 
-## 2. `GET /api/producto[?limite=N]` ÔÇö Listar
+## 2. `GET /api/producto[?limite=N]` — Listar
 
 ```
 GET /api/producto?limite=3
-ÔåÆ 200 { "tabla":"producto", "limite":3, "total":3,
-        "datos":[ {"codigo":"PR001","nombre":"Laptop Lenovo IdeaPad","stock":17,"valorunitario":2500000.00}, ÔÇª ] }
-ÔåÆ 204 (sin cuerpo) si la tabla est├í vac├¡a
-ÔåÆ 400 si limite <= 0
+→ 200 { "tabla":"producto", "limite":3, "total":3,
+        "datos":[ {"codigo":"PR001","nombre":"Laptop Lenovo IdeaPad","stock":17,"valorunitario":2500000.00}, … ] }
+→ 204 (sin cuerpo) si la tabla está vacía
+→ 400 si limite <= 0
 ```
 
-## 3. `GET /api/producto/{codigo}` ÔÇö Obtener uno
+## 3. `GET /api/producto/{codigo}` — Obtener uno
 
 ```
 GET /api/producto/PR001
-ÔåÆ 200 {"codigo":"PR001","nombre":"Laptop Lenovo IdeaPad","stock":17,"valorunitario":2500000.00}
+→ 200 {"codigo":"PR001","nombre":"Laptop Lenovo IdeaPad","stock":17,"valorunitario":2500000.00}
 
 GET /api/producto/PR999
-ÔåÆ 404 {"estado":404,"mensaje":"Producto no encontrado.","detalle":"No existe un producto con codigo = PR999"}
+→ 404 {"estado":404,"mensaje":"Producto no encontrado.","detalle":"No existe un producto con codigo = PR999"}
 ```
 
-## 4. `POST /api/producto` ÔÇö Crear (body completo, con c├│digo)
+## 4. `POST /api/producto` — Crear (body completo, con código)
 
-Body (petici├│n `ProductoCrear` ÔÇö todos obligatorios):
+Body (petición `ProductoCrear` — todos obligatorios):
 
 ```
 POST /api/producto   body {"codigo":"PR009","nombre":"Webcam","stock":10,"valorunitario":350000}
-ÔåÆ 200 {"estado":200,"mensaje":"Producto creado exitosamente."}
+→ 200 {"estado":200,"mensaje":"Producto creado exitosamente."}
 
-body {"codigo":"PR009","stock":-5}          ÔåÉ sin nombre, stock negativo
-ÔåÆ 422 {"estado":422,"mensaje":"Datos inv├ílidos.",
+body {"codigo":"PR009","stock":-5}          ← sin nombre, stock negativo
+→ 422 {"estado":422,"mensaje":"Datos inválidos.",
        "errores":["El campo nombre es obligatorio.",
                   "El campo stock debe ser un entero mayor o igual a 0."]}
 
-body {"codigo":"PR001", ÔÇª}                  ÔåÉ c├│digo duplicado (PK)
-ÔåÆ 500 con el error del motor en detalle
+body {"codigo":"PR001", …}                  ← código duplicado (PK)
+→ 500 con el error del motor en detalle
 ```
 
-## 5. `PUT /api/producto/{codigo}` ÔÇö Reemplazo COMPLETO
+## 5. `PUT /api/producto/{codigo}` — Reemplazo COMPLETO
 
-Body (petici├│n `ProductoReemplazo` ÔÇö TODOS obligatorios; el c├│digo va en la URL):
+Body (petición `ProductoReemplazo` — TODOS obligatorios; el código va en la URL):
 
 ```
 PUT /api/producto/PR009   body {"nombre":"Webcam HD","stock":12,"valorunitario":380000}
-ÔåÆ 200 {"estado":200,"mensaje":"Producto reemplazado exitosamente.","filasAfectadas":1}
+→ 200 {"estado":200,"mensaje":"Producto reemplazado exitosamente.","filasAfectadas":1}
 
-body {"stock":99}                           ÔåÉ faltan campos: PUT es TODO o 422
-ÔåÆ 422 con la lista de campos faltantes
-ÔåÆ 404 si el c├│digo no existe
+body {"stock":99}                           ← faltan campos: PUT es TODO o 422
+→ 422 con la lista de campos faltantes
+→ 404 si el código no existe
 ```
 
-## 6. `PATCH /api/producto/{codigo}` ÔÇö Actualizaci├│n PARCIAL
+## 6. `PATCH /api/producto/{codigo}` — Actualización PARCIAL
 
-Body (petici├│n `ProductoActualizar` ÔÇö todos opcionales; se escribe SOLO lo enviado):
+Body (petición `ProductoActualizar` — todos opcionales; se escribe SOLO lo enviado):
 
 ```
-PATCH /api/producto/PR009   body {"stock":99}      ÔåÉ el MISMO body que arriba
-ÔåÆ 200 {"estado":200,"mensaje":"Producto actualizado exitosamente.","filasAfectadas":1}
+PATCH /api/producto/PR009   body {"stock":99}      ← el MISMO body que arriba
+→ 200 {"estado":200,"mensaje":"Producto actualizado exitosamente.","filasAfectadas":1}
 
-body {}                                     ÔåÉ nada que actualizar
-ÔåÆ 400 {"estado":400,"mensaje":"Par├ímetros inv├ílidos.","detalle":"No se envi├│ ning├║n campo para actualizar."}
-ÔåÆ 404 si el c├│digo no existe
+body {}                                     ← nada que actualizar
+→ 400 {"estado":400,"mensaje":"Parámetros inválidos.","detalle":"No se envió ningún campo para actualizar."}
+→ 404 si el código no existe
 ```
 
-## 7. `DELETE /api/producto/{codigo}` ÔÇö Eliminar
+## 7. `DELETE /api/producto/{codigo}` — Eliminar
 
 ```
 DELETE /api/producto/PR009
-ÔåÆ 200 {"estado":200,"mensaje":"Producto eliminado exitosamente.","filasEliminadas":1}
-ÔåÆ 404 si no existe (incluido el segundo DELETE seguido)
+→ 200 {"estado":200,"mensaje":"Producto eliminado exitosamente.","filasEliminadas":1}
+→ 404 si no existe (incluido el segundo DELETE seguido)
 ```

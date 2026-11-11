@@ -45,7 +45,7 @@ Para consultar qué contiene cada versión, cómo se diferencian y preparar la s
 │   ├── Servicios/      # Clientes HTTP tipados hacia la API
 │   └── Modelos/        # Modelos independientes de presentación
 ├── db/                 # Scripts DDL, DML, Stored Procedures y Triggers de SQL Server
-├── docs/               # Paquetes de documentación organizados por versión (v1, v2, v3)
+├── docs/               # Paquetes de documentación organizados por versión (v1, v2, v3 y v4)
 └── docker-compose.yml  # Orquestación con un solo comando para todo el sistema
 ```
 

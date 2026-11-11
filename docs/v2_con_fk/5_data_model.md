@@ -1,7 +1,7 @@
 # Modelo de datos — Versión 2: las seis tablas con clave foránea
 
-> **Las 12 tablas existen en la base desde la v1** (Artículo 5 de la
-> [constitución](../../1_constitution.md)). Lo que este documento describe es
+> **Las 12 tablas existen en la base desde la v1** (según la
+> [arquitectura general](../README.md)). Lo que este documento describe es
 > **lo que el código de la v2 empieza a usar**, no lo que se crea: **la v2 no
 > crea ni modifica una sola tabla.**
 >

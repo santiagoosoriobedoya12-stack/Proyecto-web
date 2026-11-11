@@ -2,9 +2,9 @@
 
 > | | |
 > |---|---|
-> | **La ruta** | [0_mapa_versiones.md](../0_mapa_versiones.md) |
+> | **La ruta** | [Mapa de versiones](../README.md) |
 > | **Lo anterior** | [v1](../v1_sin_fk/2_spec.md) las 6 sin FK · [v2](../v2_con_fk/2_spec.md) las 6 con FK · [v3](../v3_seguridad_rbac/2_spec.md) la seguridad RBAC y JWT |
-> | **Lo que rige** | [1_constitution.md](../../1_constitution.md) |
+> | **Lo que rige** | [Arquitectura general](../README.md) |
 
 ---
 
