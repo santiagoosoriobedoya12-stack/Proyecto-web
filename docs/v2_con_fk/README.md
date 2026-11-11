@@ -28,7 +28,7 @@ La **Versión 2** completa el modelo relacional de la empresa introduciendo tres
 |---|---|---|
 | `/api/cliente` | 1:N con FK | Clave autoincremental (`IDENTITY`). Requiere `fkcodpersona` obligatoria y `fkcodempresa` opcional (nullable para persona natural). |
 | `/api/vendedor` | 1:N con FK | Clave autoincremental (`IDENTITY`). Requiere `fkcodpersona` obligatoria, carnet y dirección. |
-| `/api/factura` | Maestro-Detalle | 100% operado por Stored Procedures. No tiene endpoint `DELETE` físico: `DELETE /api/factura/{num}` realiza anulación lógica (`estado = 0`) devolviendo stock. |
+| `/api/factura` | Maestro-Detalle | 100% operado por Stored Procedures. No realiza borrado físico: `DELETE /api/factura/{num}` ejecuta anulación lógica (`estado = 'anulada'`) devolviendo stock. |
 | `/api/rol-usuario` | Tabla Puente M:N | Clave compuesta (`fkemail`, `fkidrol`). Soporta listados por ambos extremos y eliminación por clave compuesta. Sin PUT ni PATCH. |
 | `/api/rutarol` | Tabla Puente M:N | Clave compuesta (`fkidruta`, `fkidrol`). Asigna permisos de rutas a roles. Sin PUT ni PATCH. |
 | `/api/usuario-con-roles` | Recurso Compuesto | Administra un usuario y su colección de roles atómicamente con 5 Stored Procedures (`OPENJSON`). |

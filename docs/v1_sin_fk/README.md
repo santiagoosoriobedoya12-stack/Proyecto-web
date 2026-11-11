@@ -11,7 +11,7 @@
 En la **Versión 1**, el objetivo fue construir los cimientos arquitectónicos del sistema sin la complejidad de las dependencias foráneas. Se implementó el ciclo de vida CRUD completo de los recursos independientes:
 
 1. **`producto`**: Catálogo de artículos con código alfanumérico, nombre, stock y valor unitario.
-2. **`persona`**: Registro base de personas naturales con documento de identidad y datos de contacto.
+2. **`persona`**: Registro base de personas naturales con código único, nombre, correo electrónico y teléfono.
 3. **`empresa`**: Entidades jurídicas con código empresarial y razón social.
 4. **`rol`**: Roles de seguridad del sistema (ej. Administrador, Vendedor, Auditor).
 5. **`ruta`**: Endpoints y vistas protegibles del sistema.
@@ -23,7 +23,7 @@ En la **Versión 1**, el objetivo fue construir los cimientos arquitectónicos d
 
 - **Separación Estricta de Responsabilidades:**
   - **Controlador (`Controllers/`):** Solo conoce HTTP (códigos de estado 200, 201, 204, 400, 404, 422, 500), serialización JSON y rutas.
-  - **Servicio de Dominio (`Servicios/`):** Contiene las reglas del negocio puro (validaciones, cálculos). **No conoce HTTP** ni `IActionResult`. Si ocurre un fallo de negocio, lanza excepciones del dominio (`NoEncontradoExcepcion`, `ReglaNegocioExcepcion`).
+  - **Servicio de Dominio (`Servicios/`):** Contiene las reglas del negocio puro (validaciones, cálculos). **No conoce HTTP** ni `IActionResult`. Si ocurre un fallo de negocio, lanza excepciones estándar o del dominio (`NoEncontradoExcepcion`, `ArgumentException`).
   - **Repositorio (`Repositorios/`):** Encapsula el acceso a datos mediante **Dapper** y consultas SQL explícitas. **No conoce reglas ni HTTP**.
 - **Tres Clases de Petición por Recurso:**
   - `*Crear.cs`: Todos los campos obligatorios para creación (`POST` → 201 Created).

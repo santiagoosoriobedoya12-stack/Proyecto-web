@@ -72,6 +72,6 @@ Genera el corte vertical para la entidad 'usuario':
 1. Modelo Usuario.cs (email PK, contrasena).
 2. DTOs UsuarioCrear, UsuarioReemplazo, UsuarioActualizar.
 3. Repositorio Dapper, Servicio y UsuarioController.
-4. Vista Blazor Usuarios.razor con encriptación y listado protegido.
+4. Vista Blazor Usuarios.razor conectada al CRUD /api/usuario (sin autenticación todavía en v1; el hash BCrypt y el token JWT llegan en la v3).
 ```
 

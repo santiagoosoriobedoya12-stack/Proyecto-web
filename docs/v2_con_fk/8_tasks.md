@@ -51,7 +51,7 @@
 - [x] **Servicio y Controlador:**
   - `IServicioFactura.cs`, `ServicioFactura.cs`, `FacturaController.cs`.
   - Validaciones de negocio: regla de stock controlada por la base y traducida a 409 / 400.
-  - Anulación mediante `DELETE /api/factura/{numero}` ejecutando `sp_anular_factura` (borrado lógico `estado = 0`).
+  - Anulación mediante `DELETE /api/factura/{numero}` ejecutando `sp_anular_factura` (borrado lógico `estado = 'anulada'`).
 
 ---
 

@@ -47,8 +47,8 @@ Genera el módulo de facturación operado 100% mediante Stored Procedures y Trig
    - sp_listar_facturas_y_productosporfactura
    - sp_consultar_factura_y_productosporfactura
    - sp_insertar_factura_y_productosporfactura (pasando JSON al SP)
-   - sp_anular_factura (para anulación lógica estado = 0 y retorno de stock)
-4. Sin endpoints DELETE físico en la API.
+   - sp_anular_factura (para anulación lógica estado = 'anulada' y retorno de stock)
+4. El endpoint DELETE /api/factura/{numero} realiza anulación lógica (nunca borrado físico de la fila).
 5. Vista Blazor EmitirFactura.razor: Maestro-detalle interactivo en memoria (agregar ítems, validar stock, eliminar renglones, emitir) y vista Facturas.razor con detalle desplegable y anulación.
 ```
 

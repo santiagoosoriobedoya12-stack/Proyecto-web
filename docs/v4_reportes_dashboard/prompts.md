@@ -62,21 +62,21 @@ Genera una consulta de control interno y pérdidas cruzando factura, vendedor, p
 
 ### Prompt — Repositorio y Servicio de Consultas
 ```text
-Implementa en C# .NET 10 un repositorio IRepositorioConsultas y su implementación RepositorioConsultasSqlServer utilizando Dapper. Cada uno de los 10 métodos debe ejecutar de forma asíncrona (Task<IEnumerable<T>>) las consultas SQL multitabla optimizadas y mapear a DTOs inmutables fuertemente tipados. Agrega además un método ObtenerDashboardKpisAsync que calcule las métricas del tablero gerencial.
+Implementa en C# .NET 10 un repositorio IRepositorioConsultas y RepositorioConsultasSqlServer utilizando Dapper, además de la capa de servicio IServicioConsultas y ServicioConsultas registrados en Program.cs. Cada uno de los 10 métodos debe ejecutar de forma asíncrona (Task<IEnumerable<T>>) las consultas SQL multitabla optimizadas y mapear a DTOs record inmutables en Modelos/Consultas/ConsultasDtos.cs. Agrega además un método ObtenerDashboardKpisAsync que calcule las métricas del tablero gerencial.
 ```
 
-### Prompt — Controladores REST con Seguridad JWT
+### Prompt — Controladores REST con Seguridad JWT y RBAC
 ```text
-Crea dos controladores en ASP.NET Core Web API: ConsultasController (/api/consultas) y DashboardController (/api/dashboard). Protege ambos controladores con el atributo [Authorize] para exigir el token JWT de la versión 3. Expón los endpoints GET /c1 hasta /c10 y GET /kpis devolviendo ActionResult<IEnumerable<T>> con códigos 200 OK y manejo de excepciones.
+Crea dos controladores en ASP.NET Core Web API: ConsultasController (/api/consultas) y DashboardController (/api/dashboard). Protege ambos controladores con [Authorize] y [ExigePermiso("interfaz.inicio")] heredando la seguridad de la v3. Expón los endpoints GET /c1 hasta /c10 y GET /kpis devolviendo ActionResult con códigos 200 OK. Actualiza el diagnóstico raíz GET / para reportar version = "v4" y contratos = "docs/spec_kit/versiones/v4_reportes_dashboard/6_contracts.md".
 ```
 
 ---
 
 ## 3. Prompts de Frontend (Blazor Server)
 
-### Prompt — Componente Dashboard Ejecutivo
+### Prompt — Componente Dashboard Ejecutivo y Cliente HTTP
 ```text
-Desarrolla en Blazor Server (C# / Razor) una página Dashboard.razor que consuma /api/dashboard/kpis y /api/consultas/c2. Muestra 4 tarjetas KPI con iconos, formato de moneda y porcentajes (Ventas Totales, Total Facturas, Clientes Registrados, Stock Crítico), además de una tabla con los 5 productos más vendidos y una barra visual de rotación construida puramente con CSS y Bootstrap local.
+Crea en Blazor Server el servicio tipado Servicios/ServicioConsultas.cs (con método Autorizar() para inyectar Bearer Token) y la página Dashboard.razor (/dashboard) que consuma concurrentemente con Task.WhenAll las rutas api/dashboard/kpis y api/consultas/c2. Muestra 4 tarjetas KPI con formato de moneda y alertas (Ventas Totales, Facturas Emitidas, Clientes y Vendedores, Alerta de Inventario), además de una tabla con el Top 5 de productos y barras visuales de impacto en CSS puro y Bootstrap local.
 ```
 
 ### Prompt — Explorador Interactivo de Consultas

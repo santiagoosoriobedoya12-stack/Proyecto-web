@@ -72,7 +72,7 @@ Completar las **12 tablas** del modelo introduciendo dependencias entre filas (`
   - **Diferencia fundamental con 422:** El `422` es error de forma o sintaxis en el JSON enviado; el `409` ocurre cuando el JSON está perfecto pero choca contra el estado actual de la base de datos (ej: la persona asociada al cliente no existe).
 - **Facturación Maestro-Detalle Delegada a SQL Server:**
   - La API **nunca calcula subtotales, totales ni precios unitarios**. El disparador `trg_prodfact_insert` y los procedimientos almacenados son la única fuente de verdad contable y de descuento de inventario.
-  - No existe `DELETE` físico en la API: Se ejecuta `sp_anular_factura` (borrado lógico `estado = 0`) para restituir el stock.
+  - No realiza borrado físico en la API: `DELETE /api/factura/{numero}` ejecuta `sp_anular_factura` (borrado lógico `estado = 'anulada'`) para restituir el stock.
 - **Optimización de Front (Blazor Server):**
   - Desplegables dinámicos (`<select>`): Las claves foráneas se seleccionan de listas traídas de la API (muestra nombres, envía códigos).
   - **Carga Concurrente con `Task.WhenAll`:** En pantallas complejas (`Clientes.razor`, `Facturas.razor`), las peticiones a personas, empresas o catálogos se disparan en paralelo, evitando timeouts de 50 segundos.
