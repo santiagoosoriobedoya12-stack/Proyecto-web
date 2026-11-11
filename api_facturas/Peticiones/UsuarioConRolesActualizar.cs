@@ -1,3 +1,4 @@
+// Atributos de validación automática de modelos ([Required], [StringLength], [Range], [EmailAddress])
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
@@ -12,8 +13,10 @@ namespace ApiFacturas.Peticiones;
 /// </summary>
 public class UsuarioConRolesActualizar
 {
+    // Limita longitud mínima y máxima de texto según el tamaño de la columna en SQL Server
     [StringLength(200, ErrorMessage = "La contraseña no puede superar 200 caracteres.")]
     [JsonPropertyName("contrasena")]
+    // Propiedad 'Contrasena' (string?) mapeada desde SQL Server o JSON
     public string? Contrasena { get; set; }
 
     [JsonPropertyName("roles")]

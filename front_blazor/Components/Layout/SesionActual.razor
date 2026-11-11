@@ -1,17 +1,24 @@
+@* Inyecta el estado de sesión Scoped en el circuito actual del usuario *@
 @inject FrontFacturas.Servicios.EstadoSesion EstadoSesion
+@* Inyecta el servicio HTTP encargado de iniciar y cerrar sesión *@
 @inject FrontFacturas.Servicios.ServicioSesion ServicioSesion
+@* Inyecta el administrador de navegación para redirigir tras cerrar sesión *@
 @inject NavigationManager Navigation
+@* Implementa IDisposable para desuscribirse del evento AlCambiarEstado al destruir el componente y evitar fugas de memoria *@
 @implements IDisposable
 
+<!-- Barra informativa superior visible en todas las pantallas indicando si hay sesión JWT activa -->
 <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light border rounded">
     @if (EstadoSesion.EstaAutenticado)
     {
+        <!-- Bloque mostrado cuando existe un token JWT válido guardado en EstadoSesion -->
         <div class="d-flex align-items-center gap-2">
             <span class="badge bg-success">Sesión Activa</span>
             <strong>@EstadoSesion.Email</strong>
             <span class="text-muted">(@string.Join(", ", EstadoSesion.Roles))</span>
         </div>
         <div>
+            <!-- Al hacer clic ejecuta Cerrar(), limpiando el token en memoria y redirigiendo al login -->
             <button class="btn btn-sm btn-outline-danger" @onclick="Cerrar">
                 Cerrar sesión
             </button>
@@ -19,6 +26,7 @@
     }
     else
     {
+        <!-- Bloque mostrado cuando el usuario aún no se ha identificado -->
         <div class="d-flex align-items-center gap-2">
             <span class="badge bg-secondary">Sin sesión</span>
             <span class="text-muted">No te has identificado en el sistema</span>
@@ -32,25 +40,36 @@
 </div>
 
 @code {
+    /// <summary>
+    /// Se suscribe al evento AlCambiarEstado de EstadoSesion para refrescar esta barra en cuanto el usuario inicia o cierra sesión.
+    /// </summary>
     protected override void OnInitialized()
     {
         EstadoSesion.AlCambiarEstado += ActualizarEstado;
     }
 
+    /// <summary>
+    /// Notifica a Blazor en el hilo del circuito UI que debe volver a renderizar el componente.
+    /// </summary>
     private void ActualizarEstado()
     {
         InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Limpia la sesión actual (token, correo, roles y permisos) y navega a la pantalla de inicio de sesión.
+    /// </summary>
     private void Cerrar()
     {
         ServicioSesion.CerrarSesion();
         Navigation.NavigateTo("/sesion");
     }
 
+    /// <summary>
+    /// Cancela la suscripción al evento cuando el componente sale de pantalla para liberar memoria.
+    /// </summary>
     public void Dispose()
     {
         EstadoSesion.AlCambiarEstado -= ActualizarEstado;
     }
 }
-

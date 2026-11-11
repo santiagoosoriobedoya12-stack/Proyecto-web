@@ -1,8 +1,12 @@
+@* Inyecta el estado de sesión Scoped para leer las rutas autorizadas del usuario actual *@
 @inject FrontFacturas.Servicios.EstadoSesion EstadoSesion
+@* Implementa IDisposable para desuscribirse del evento al desmontar el menú *@
 @implements IDisposable
 
+<!-- Barra de navegación principal corporativa (oculta o muestra módulos dinámicamente según el rol) -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4 shadow-sm">
     <div class="container-fluid">
+        <!-- Logotipo / Nombre de la plataforma empresarial -->
         <a class="navbar-brand fw-bold" href="/">FactuCorp ERP <span class="badge bg-primary">v4</span></a>
         
         <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -15,17 +19,21 @@
             }
             else
             {
+                <!-- Enlace a la pantalla inicial -->
                 <NavLink class="nav-link text-white" href="" Match="NavLinkMatch.All">
                     Inicio
                 </NavLink>
 
-                <!-- Módulos Versión 4 (Analítica y Dashboard) -->
+                <!-- Módulos Versión 4 (Analítica, KPIs y Consultas Multitabla) -->
                 <NavLink class="nav-link text-info fw-bold" href="dashboard">
                     📊 Dashboard
                 </NavLink>
                 <NavLink class="nav-link text-info fw-bold" href="consultas">
                     📈 Consultas
                 </NavLink>
+
+                @* Cada entrada del menú consulta EstadoSesion.TienePermiso(...) recibido desde GET /api/permisos/mios.
+                   NOTA DE SEGURIDAD (Criterio 9 v3): Ocultar aquí es solo UX; la protección real está en el atributo [ExigePermiso] de la API *@
 
                 @if (EstadoSesion.TienePermiso("interfaz.productos"))
                 {
@@ -111,16 +119,25 @@
 </nav>
 
 @code {
+    /// <summary>
+    /// Se suscribe al evento de cambio de sesión para redibujar el menú dinámico cuando el usuario entra o sale.
+    /// </summary>
     protected override void OnInitialized()
     {
         EstadoSesion.AlCambiarEstado += Actualizar;
     }
 
+    /// <summary>
+    /// Solicita el re-renderizado seguro del menú en el hilo del circuito Blazor.
+    /// </summary>
     private void Actualizar()
     {
         InvokeAsync(StateHasChanged);
     }
 
+    /// <summary>
+    /// Libera la suscripción al evento al destruir el componente.
+    /// </summary>
     public void Dispose()
     {
         EstadoSesion.AlCambiarEstado -= Actualizar;

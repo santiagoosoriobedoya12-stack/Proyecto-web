@@ -1,7 +1,12 @@
+// Excepciones tipadas de dominio (NoEncontradoExcepcion -> 404, ConflictoExcepcion -> 409)
 using ApiFacturas.Excepciones;
+// Entidades del dominio que representan las tablas de la base de datos
 using ApiFacturas.Modelos;
+// DTOs de entrada segregados por verbo HTTP (Crear, Reemplazo, Actualizar)
 using ApiFacturas.Peticiones;
+// Contratos e implementaciones de acceso a datos con Dapper
 using ApiFacturas.Repositorios;
+// Contratos e implementaciones de lógica y reglas de negocio
 using ApiFacturas.Servicios;
 
 namespace ApiFacturas.Pruebas;
@@ -20,16 +25,19 @@ public class RepositorioProductoFalso : IRepositorioProducto
         return Task.FromResult(lista);
     }
 
+    // Busca un registro específico por su código único
     public Task<Producto?> ObtenerPorCodigoAsync(string codigo)
     {
         _tabla.TryGetValue(codigo, out var producto);
         return Task.FromResult(producto);
     }
 
+    // Valida los datos de entrada y registra una nueva entidad en el sistema
     public Task CrearAsync(Producto producto)
     {
         if (_tabla.ContainsKey(producto.Codigo))
         {
+            // Lanza error cuando la operación entra en conflicto con el estado actual (HTTP 409)
             throw new InvalidOperationException($"Clave duplicada: {producto.Codigo}");
         }
 
@@ -43,6 +51,7 @@ public class RepositorioProductoFalso : IRepositorioProducto
         return Task.CompletedTask;
     }
 
+    // Actualiza parcialmente solo los campos modificados enviados (operación PATCH)
     public Task<int> ActualizarAsync(string codigo, Dictionary<string, object> datos)
     {
         if (!_tabla.TryGetValue(codigo, out var producto))
@@ -69,6 +78,7 @@ public class RepositorioProductoFalso : IRepositorioProducto
         return Task.FromResult(1);
     }
 
+    // Elimina el registro especificado validando su existencia previa
     public Task<int> EliminarAsync(string codigo)
     {
         return Task.FromResult(_tabla.Remove(codigo) ? 1 : 0);
@@ -90,12 +100,14 @@ public class RepositorioClienteFalso : IRepositorioCliente
         return Task.FromResult(lista);
     }
 
+    // Busca un registro específico por su identificador numérico
     public Task<Cliente?> ObtenerPorIdAsync(int id)
     {
         _tabla.TryGetValue(id, out var cliente);
         return Task.FromResult(cliente);
     }
 
+    // Valida los datos de entrada y registra una nueva entidad en el sistema
     public Task<int> CrearAsync(Cliente cliente)
     {
         var id = _contadorId++;
@@ -110,6 +122,7 @@ public class RepositorioClienteFalso : IRepositorioCliente
         return Task.FromResult(id);
     }
 
+    // Actualiza parcialmente solo los campos modificados enviados (operación PATCH)
     public Task<int> ActualizarAsync(int id, Dictionary<string, object?> datos)
     {
         if (!_tabla.TryGetValue(id, out var cliente))
@@ -134,6 +147,7 @@ public class RepositorioClienteFalso : IRepositorioCliente
         return Task.FromResult(1);
     }
 
+    // Elimina el registro especificado validando su existencia previa
     public Task<int> EliminarAsync(int id)
     {
         return Task.FromResult(_tabla.Remove(id) ? 1 : 0);
@@ -214,11 +228,13 @@ public class Programa
 
         // Eliminación
         await servicioCli.EliminarAsync(idNatural);
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             await servicioCli.ObtenerPorIdAsync(idNatural);
             throw new Exception("Debió fallar con 404.");
         }
+        // Captura recurso no encontrado y responde código HTTP 404 Not Found
         catch (NoEncontradoExcepcion)
         {
             Console.WriteLine("✔ Eliminación y verificación 404 correcta.");

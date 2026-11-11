@@ -1,9 +1,15 @@
+@* Enrutador principal de Blazor: busca todas las páginas @page dentro del ensamblado de la app *@
 <Router AppAssembly="typeof(Program).Assembly">
+    @* Cuando la URL escrita en el navegador coincide con una ruta @page válida *@
     <Found Context="routeData">
+        @* Renderiza el componente encontrado envolviéndolo en el diseño maestro MainLayout *@
         <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)" />
+        @* Mueve el foco de accesibilidad al encabezado principal <h1> tras navegar *@
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
+    @* Cuando la URL solicitada no coincide con ninguna página registrada *@
     <NotFound>
+        @* Muestra el mensaje 404 amigable dentro del layout general *@
         <LayoutView Layout="typeof(MainLayout)">
             <div class="alert alert-warning m-4">
                 <h4>Página no encontrada</h4>
@@ -13,4 +19,3 @@
         </LayoutView>
     </NotFound>
 </Router>
-

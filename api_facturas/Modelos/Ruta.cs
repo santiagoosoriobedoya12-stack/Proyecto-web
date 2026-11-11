@@ -7,6 +7,7 @@ namespace ApiFacturas.Modelos;
 /// </summary>
 public class Ruta
 {
+    // Propiedad 'Id' (int) mapeada desde SQL Server o JSON
     public int Id { get; set; }
     public required string NombreRuta { get; set; }
     public required string Descripcion { get; set; }

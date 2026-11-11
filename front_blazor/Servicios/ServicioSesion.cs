@@ -1,6 +1,9 @@
 using System.Net.Http.Headers;
+// Métodos de extensión para enviar y deserializar JSON directamente con HttpClient
 using System.Net.Http.Json;
+// Serializador oficial System.Text.Json para leer y construir cuerpos JSON
 using System.Text.Json;
+// Clases DTO usadas por los componentes de Blazor para mostrar y editar datos
 using FrontFacturas.Modelos;
 
 namespace FrontFacturas.Servicios;
@@ -11,9 +14,12 @@ namespace FrontFacturas.Servicios;
 /// </summary>
 public class ServicioSesion
 {
+    // Cliente HTTP inyectado para comunicarse con la API REST
     private readonly HttpClient _http;
+    // Estado de sesión Scoped que conserva el token JWT en memoria del circuito Blazor
     private readonly EstadoSesion _estadoSesion;
 
+    // Constructor con inyección de dependencias: recibe la dependencia requerida y protege contra referencias nulas
     public ServicioSesion(HttpClient http, EstadoSesion estadoSesion)
     {
         _http = http;
@@ -25,6 +31,7 @@ public class ServicioSesion
     /// </summary>
     public async Task<(bool Exito, string Mensaje)> IniciarSesionAsync(string email, string contrasena)
     {
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             var peticion = new PeticionSesion { Email = email, Contrasena = contrasena };
@@ -33,6 +40,7 @@ public class ServicioSesion
             if (!respuesta.IsSuccessStatusCode)
             {
                 var errorContenido = await respuesta.Content.ReadAsStringAsync();
+                // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
                 try
                 {
                     using var doc = JsonDocument.Parse(errorContenido);
@@ -71,6 +79,7 @@ public class ServicioSesion
             _estadoSesion.IniciarSesion(sesion.Token, sesion.Email, sesion.Roles, rutasPermitidas);
             return (true, "Sesión iniciada correctamente.");
         }
+        // Red de seguridad final: captura excepciones imprevistas y responde HTTP 500 Internal Server Error
         catch (Exception ex)
         {
             return (false, $"Error de comunicación con la API: {ex.Message}");

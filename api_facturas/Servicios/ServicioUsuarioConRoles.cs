@@ -1,6 +1,10 @@
+// Serializador oficial System.Text.Json para leer y construir cuerpos JSON
 using System.Text.Json;
+// Entidades del dominio que representan las tablas de la base de datos
 using ApiFacturas.Modelos;
+// DTOs de entrada segregados por verbo HTTP (Crear, Reemplazo, Actualizar)
 using ApiFacturas.Peticiones;
+// Contratos e implementaciones de acceso a datos con Dapper
 using ApiFacturas.Repositorios;
 
 namespace ApiFacturas.Servicios;
@@ -18,6 +22,7 @@ public class ServicioUsuarioConRoles : IServicioUsuarioConRoles
 {
     private readonly IRepositorioUsuarioConRoles _repositorio;
 
+    // Constructor con inyección de dependencias: recibe la dependencia requerida y protege contra referencias nulas
     public ServicioUsuarioConRoles(IRepositorioUsuarioConRoles repositorio)
     {
         _repositorio = repositorio ?? throw new ArgumentNullException(nameof(repositorio));
@@ -28,16 +33,20 @@ public class ServicioUsuarioConRoles : IServicioUsuarioConRoles
         return await _repositorio.ListarAsync();
     }
 
+    // Ejecuta la operación 'ConsultarAsync' dentro de la capa correspondiente
     public async Task<UsuarioConRoles> ConsultarAsync(string email)
     {
+        // Valida que el identificador o cadena requerida no llegue nula ni vacía
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("El email del usuario es obligatorio.");
 
         return await _repositorio.ConsultarAsync(email.Trim());
     }
 
+    // Valida los datos de entrada y registra una nueva entidad en el sistema
     public async Task<UsuarioConRoles> CrearAsync(UsuarioConRolesCrear peticion)
     {
+        // Verifica que el cuerpo de la petición recibido no sea nulo
         if (peticion == null)
             throw new ArgumentNullException(nameof(peticion));
 
@@ -47,11 +56,14 @@ public class ServicioUsuarioConRoles : IServicioUsuarioConRoles
         return await _repositorio.CrearAsync(peticion.Email!.Trim(), peticion.Contrasena!, rolesJson);
     }
 
+    // Actualiza parcialmente solo los campos modificados enviados (operación PATCH)
     public async Task<UsuarioConRoles> ActualizarAsync(string email, UsuarioConRolesActualizar peticion)
     {
+        // Valida que el identificador o cadena requerida no llegue nula ni vacía
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("El email del usuario es obligatorio.");
 
+        // Verifica que el cuerpo de la petición recibido no sea nulo
         if (peticion == null)
             throw new ArgumentNullException(nameof(peticion));
 
@@ -61,8 +73,10 @@ public class ServicioUsuarioConRoles : IServicioUsuarioConRoles
         return await _repositorio.ActualizarAsync(email.Trim(), peticion.Contrasena, rolesJson);
     }
 
+    // Elimina el registro especificado validando su existencia previa
     public async Task EliminarAsync(string email)
     {
+        // Valida que el identificador o cadena requerida no llegue nula ni vacía
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("El email del usuario es obligatorio.");
 

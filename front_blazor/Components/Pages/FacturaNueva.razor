@@ -1,10 +1,18 @@
+@* Ruta URL en Blazor que renderiza esta página: '/facturas/nueva' *@
 @page "/facturas/nueva"
+@* Inyección de dependencia 'ServicioFactura' disponible bajo la variable 'ServicioFactura' *@
 @inject ServicioFactura ServicioFactura
+@* Inyección de dependencia 'ServicioCliente' disponible bajo la variable 'ServicioCliente' *@
 @inject ServicioCliente ServicioCliente
+@* Inyección de dependencia 'ServicioVendedor' disponible bajo la variable 'ServicioVendedor' *@
 @inject ServicioVendedor ServicioVendedor
+@* Inyección de dependencia 'ServicioProducto' disponible bajo la variable 'ServicioProducto' *@
 @inject ServicioProducto ServicioProducto
+@* Inyección de dependencia 'ServicioPersona' disponible bajo la variable 'ServicioPersona' *@
 @inject ServicioPersona ServicioPersona
+@* Inyección de dependencia 'NavigationManager' disponible bajo la variable 'Navigation' *@
 @inject NavigationManager Navigation
+@* Activa el modo interactivo en servidor (SignalR/WebSocket) para eventos sin recargar la página *@
 @rendermode InteractiveServer
 
 <PageTitle>Emitir Factura — Sistema de Facturación v2</PageTitle>
@@ -26,6 +34,7 @@
         @if (listaErroresValidacion != null && listaErroresValidacion.Count > 0)
         {
             <ul class="mb-0 mt-2">
+                @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                 @foreach (var err in listaErroresValidacion)
                 {
                     <li>@err</li>
@@ -47,8 +56,10 @@
             <div class="tarjeta-body">
                 <div class="mb-3">
                     <label class="form-label">Cliente (FK Obligatoria)</label>
+                    <!-- Selector dinámico alimentado por la API para elegir claves foráneas por nombre (Versión 2) -->
                     <select class="form-select" @bind="clienteSeleccionadoId">
                         <option value="0">-- Seleccione un Cliente --</option>
+                        @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                         @foreach (var c in listaClientes)
                         {
                             <option value="@c.Id">Cliente #@c.Id — @ObtenerNombrePersona(c.Fkcodpersona)</option>
@@ -58,8 +69,10 @@
 
                 <div class="mb-3">
                     <label class="form-label">Vendedor (FK Obligatoria)</label>
+                    <!-- Selector dinámico alimentado por la API para elegir claves foráneas por nombre (Versión 2) -->
                     <select class="form-select" @bind="vendedorSeleccionadoId">
                         <option value="0">-- Seleccione un Vendedor --</option>
+                        @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                         @foreach (var v in listaVendedores)
                         {
                             <option value="@v.Id">Vendedor #@v.Id — @ObtenerNombrePersona(v.Fkcodpersona) (Carnet: @v.Carnet)</option>
@@ -77,8 +90,10 @@
             <div class="tarjeta-body">
                 <div class="mb-3">
                     <label class="form-label">Seleccionar Producto</label>
+                    <!-- Selector dinámico alimentado por la API para elegir claves foráneas por nombre (Versión 2) -->
                     <select class="form-select" @bind="productoSeleccionadoCodigo">
                         <option value="">-- Seleccione un Producto --</option>
+                        @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                         @foreach (var p in listaProductos)
                         {
                             <option value="@p.Codigo">@p.Nombre (@p.Codigo) — Stock: @p.Stock — @p.Valorunitario.ToString("C0")</option>
@@ -107,6 +122,7 @@
             </div>
             <div class="tarjeta-body p-0">
                 <div class="table-responsive">
+                    <!-- Tabla Bootstrap responsiva para mostrar el listado de registros de la API -->
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
@@ -128,6 +144,7 @@
                             }
                             else
                             {
+                                @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                                 @foreach (var r in renglonesEnMemoria)
                                 {
                                     <tr>
@@ -164,6 +181,7 @@
     </div>
 </div>
 
+@* Lógica C# del componente: estado en memoria, llamadas HTTP y manejo de eventos *@
 @code {
     private List<Cliente> listaClientes = new();
     private List<Vendedor> listaVendedores = new();
@@ -179,8 +197,11 @@
     // Estructura en memoria para la construcción interactiva de los renglones (Criterio 13)
     private class RenglonMemoria
     {
+        // Propiedad 'Codigo' (string) mapeada desde SQL Server o JSON
         public string Codigo { get; set; } = string.Empty;
+        // Propiedad 'Nombre' (string) mapeada desde SQL Server o JSON
         public string Nombre { get; set; } = string.Empty;
+        // Propiedad 'Cantidad' (int) mapeada desde SQL Server o JSON
         public int Cantidad { get; set; }
     }
 
@@ -195,8 +216,10 @@
         await CargarCatalogos();
     }
 
+    // Consulta los datos desde la API manejando errores de red o falta de permisos (401/403)
     private async Task CargarCatalogos()
     {
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             var tareaClientes = ServicioCliente.ListarAsync();
@@ -211,6 +234,7 @@
             listaProductos = await tareaProductos;
             listaPersonas = await tareaPersonas;
         }
+        // Red de seguridad final: captura excepciones imprevistas y responde HTTP 500 Internal Server Error
         catch (Exception ex)
         {
             mensajeAlerta = $"Error cargando catálogos: {ex.Message}";
@@ -218,16 +242,19 @@
         }
     }
 
+    // Ejecuta la operación 'ObtenerNombrePersona' dentro de la capa correspondiente
     private string ObtenerNombrePersona(string codigo)
     {
         var p = listaPersonas.FirstOrDefault(x => x.Codigo == codigo);
         return p != null ? p.Nombre : codigo;
     }
 
+    // Ejecuta la operación 'AgregarRenglonMemoria' dentro de la capa correspondiente
     private void AgregarRenglonMemoria()
     {
         mensajeAlerta = null;
 
+        // Valida que el identificador o cadena requerida no llegue nula ni vacía
         if (string.IsNullOrWhiteSpace(productoSeleccionadoCodigo))
         {
             mensajeAlerta = "Seleccione un producto para agregar.";
@@ -271,11 +298,13 @@
         cantidadSeleccionada = 1;
     }
 
+    // Ejecuta la operación 'QuitarRenglonMemoria' dentro de la capa correspondiente
     private void QuitarRenglonMemoria(string codigo)
     {
         renglonesEnMemoria.RemoveAll(r => r.Codigo == codigo);
     }
 
+    // Ejecuta la operación 'EmitirFactura' dentro de la capa correspondiente
     private async Task EmitirFactura()
     {
         mensajeAlerta = null;

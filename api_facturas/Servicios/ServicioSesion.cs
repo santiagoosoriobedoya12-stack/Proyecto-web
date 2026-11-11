@@ -1,8 +1,11 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+// Entidades del dominio que representan las tablas de la base de datos
 using ApiFacturas.Modelos;
+// DTOs de entrada segregados por verbo HTTP (Crear, Reemplazo, Actualizar)
 using ApiFacturas.Peticiones;
+// Contratos e implementaciones de acceso a datos con Dapper
 using ApiFacturas.Repositorios;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -19,6 +22,7 @@ public class ServicioSesion : IServicioSesion
     private readonly IRepositorioAcceso _repositorioAcceso;
     private readonly ConfiguracionJwt _jwtConfig;
 
+    // Constructor con inyección de dependencias: recibe la dependencia requerida y protege contra referencias nulas
     public ServicioSesion(
         IRepositorioUsuario repositorioUsuario,
         IRepositorioAcceso repositorioAcceso,
@@ -42,6 +46,7 @@ public class ServicioSesion : IServicioSesion
 
         // 2. Comprobar la contraseña
         bool esValida = false;
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             if (usuario.Contrasena.StartsWith("$2a$") || usuario.Contrasena.StartsWith("$2b$"))
@@ -96,6 +101,7 @@ public class ServicioSesion : IServicioSesion
         // 5. Firmar el token JWT
         if (string.IsNullOrWhiteSpace(_jwtConfig.Key) || _jwtConfig.Key.Length < 32)
         {
+            // Lanza error cuando la operación entra en conflicto con el estado actual (HTTP 409)
             throw new InvalidOperationException("La clave Jwt:Key debe tener al menos 32 caracteres (256 bits).");
         }
 

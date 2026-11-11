@@ -1,3 +1,4 @@
+// Entidades del dominio que representan las tablas de la base de datos
 using ApiFacturas.Modelos;
 
 namespace ApiFacturas.Repositorios;

@@ -1,5 +1,8 @@
+@* Ruta URL en Blazor que renderiza esta página: '/productos' *@
 @page "/productos"
+@* Inyección de dependencia 'ServicioProducto' disponible bajo la variable 'ServicioProducto' *@
 @inject ServicioProducto ServicioProducto
+@* Activa el modo interactivo en servidor (SignalR/WebSocket) para eventos sin recargar la página *@
 @rendermode InteractiveServer
 
 <PageTitle>Productos — Sistema de Facturación v1</PageTitle>
@@ -14,6 +17,7 @@
      Si la API está apagada, la interfaz gráfica SIGUE EN PIE, muestra el menú,
      un aviso de que no se pudo conectar y NI UNA SOLA FILA.
      ============================================================== -->
+@* Muestra alerta si la API no responde o si el rol carece de permisos (403 Forbidden) *@
 @if (errorConexion)
 {
     <div class="alert alert-danger aviso-desconexion mb-4 shadow-sm" role="alert">
@@ -38,6 +42,7 @@
         @if (listaErroresValidacion != null && listaErroresValidacion.Count > 0)
         {
             <ul class="mb-0 mt-2">
+                @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                 @foreach (var err in listaErroresValidacion)
                 {
                     <li>@err</li>
@@ -148,6 +153,7 @@
                 else if (!errorConexion)
                 {
                     <div class="table-responsive">
+                        <!-- Tabla Bootstrap responsiva para mostrar el listado de registros de la API -->
                         <table class="table table-striped table-hover mb-0 align-middle">
                             <thead class="table-light">
                                 <tr>
@@ -159,6 +165,7 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                                 @foreach (var prod in listaProductos)
                                 {
                                     <tr>
@@ -187,6 +194,7 @@
     </div>
 </div>
 
+@* Lógica C# del componente: estado en memoria, llamadas HTTP y manejo de eventos *@
 @code {
     private List<Producto> listaProductos = new();
     private Producto formularioProducto = new();
@@ -212,16 +220,19 @@
     {
         cargando = true;
         errorConexion = false;
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             listaProductos = await ServicioProducto.ListarAsync();
         }
+        // Captura falla de red o API apagada en el frontend para evitar caída y mostrar alerta
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Forbidden)
         {
             mensajeAlerta = "Su rol no tiene permiso para esta operacion.";
             esExito = false;
             listaProductos = new List<Producto>();
         }
+        // Captura falla de red o API apagada en el frontend para evitar caída y mostrar alerta
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
         {
             mensajeAlerta = "No hay una sesion valida. Debe iniciar sesion.";
@@ -299,6 +310,7 @@
         };
     }
 
+    // Limpia el formulario actual y regresa al modo de creación
     private void CancelarEdicion()
     {
         modoEdicion = false;

@@ -1,6 +1,10 @@
+// DTOs de entrada segregados por verbo HTTP (Crear, Reemplazo, Actualizar)
 using ApiFacturas.Peticiones;
+// Contratos e implementaciones de lógica y reglas de negocio
 using ApiFacturas.Servicios;
+// Atributos [Authorize] y [AllowAnonymous] para proteger o abrir endpoints HTTP (Versión 3)
 using Microsoft.AspNetCore.Authorization;
+// Componentes base de ASP.NET Core MVC (ControllerBase, IActionResult, [HttpGet], [Route])
 using Microsoft.AspNetCore.Mvc;
 
 namespace ApiFacturas.Controllers;
@@ -10,11 +14,14 @@ namespace ApiFacturas.Controllers;
 /// Es el único controlador abierto de la API decorado con [AllowAnonymous].
 /// </summary>
 [ApiController]
+// Define el prefijo de ruta URL en la API para este recurso: 'api/[controller]'
 [Route("api/[controller]")]
+// Controlador REST 'SesionController': recibe peticiones HTTP, invoca la capa de servicio y traduce excepciones a códigos de estado HTTP
 public class SesionController : ControllerBase
 {
     private readonly IServicioSesion _servicioSesion;
 
+    // Constructor con inyección de dependencias: recibe la dependencia requerida y protege contra referencias nulas
     public SesionController(IServicioSesion servicioSesion)
     {
         _servicioSesion = servicioSesion;
@@ -24,7 +31,9 @@ public class SesionController : ControllerBase
     /// Inicia sesión recibiendo las credenciales estrictamente en el cuerpo JSON (POST).
     /// </summary>
     [HttpPost]
+    // Permite invocar este endpoint sin token JWT (necesario para login o diagnóstico público)
     [AllowAnonymous]
+    // Ejecuta la operación 'IniciarSesion' dentro de la capa correspondiente
     public async Task<IActionResult> IniciarSesion([FromBody] SesionCrear peticion)
     {
         if (!ModelState.IsValid)
@@ -51,6 +60,7 @@ public class SesionController : ControllerBase
             });
         }
 
+        // Devuelve código HTTP 200 OK con el resultado serializado en JSON
         return Ok(sesion);
     }
 }

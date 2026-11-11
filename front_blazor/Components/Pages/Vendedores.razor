@@ -1,6 +1,10 @@
+@* Ruta URL en Blazor que renderiza esta página: '/vendedores' *@
 @page "/vendedores"
+@* Inyección de dependencia 'ServicioVendedor' disponible bajo la variable 'ServicioVendedor' *@
 @inject ServicioVendedor ServicioVendedor
+@* Inyección de dependencia 'ServicioPersona' disponible bajo la variable 'ServicioPersona' *@
 @inject ServicioPersona ServicioPersona
+@* Activa el modo interactivo en servidor (SignalR/WebSocket) para eventos sin recargar la página *@
 @rendermode InteractiveServer
 
 <PageTitle>Vendedores — Sistema de Facturación v2</PageTitle>
@@ -10,6 +14,7 @@
     <span class="badge bg-primary">Versión 2 · Clave Foránea Obligatoria</span>
 </div>
 
+@* Muestra alerta si la API no responde o si el rol carece de permisos (403 Forbidden) *@
 @if (errorConexion)
 {
     <div class="alert alert-danger aviso-desconexion mb-4 shadow-sm" role="alert">
@@ -26,6 +31,7 @@
         @if (listaErroresValidacion != null && listaErroresValidacion.Count > 0)
         {
             <ul class="mb-0 mt-2">
+                @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                 @foreach (var err in listaErroresValidacion)
                 {
                     <li>@err</li>
@@ -72,8 +78,10 @@
                 <!-- Criterio 11 y 12: Select de Persona cargado dinámicamente de la API -->
                 <div class="mb-3">
                     <label class="form-label">Persona Asociada (FK Obligatoria)</label>
+                    <!-- Selector dinámico alimentado por la API para elegir claves foráneas por nombre (Versión 2) -->
                     <select class="form-select" @bind="formularioVendedor.Fkcodpersona">
                         <option value="">-- Seleccione una Persona --</option>
+                        @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                         @foreach (var p in listaPersonas)
                         {
                             <option value="@p.Codigo">@p.Nombre (@p.Codigo)</option>
@@ -114,6 +122,7 @@
             </div>
             <div class="tarjeta-body p-0">
                 <div class="table-responsive">
+                    <!-- Tabla Bootstrap responsiva para mostrar el listado de registros de la API -->
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
                             <tr>
@@ -135,6 +144,7 @@
                             }
                             else
                             {
+                                @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                                 @foreach (var v in listaVendedores)
                                 {
                                     <tr>
@@ -161,6 +171,7 @@
     </div>
 </div>
 
+@* Lógica C# del componente: estado en memoria, llamadas HTTP y manejo de eventos *@
 @code {
     private List<Vendedor> listaVendedores = new();
     private List<Persona> listaPersonas = new();
@@ -179,10 +190,12 @@
         await CargarDatos();
     }
 
+    // Consulta los datos desde la API manejando errores de red o falta de permisos (401/403)
     private async Task CargarDatos()
     {
         errorConexion = false;
         mensajeAlerta = null;
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             var tareaVendedores = ServicioVendedor.ListarAsync();
@@ -199,12 +212,14 @@
         }
     }
 
+    // Ejecuta la operación 'ObtenerNombrePersona' dentro de la capa correspondiente
     private string ObtenerNombrePersona(string codigo)
     {
         var p = listaPersonas.FirstOrDefault(x => x.Codigo == codigo);
         return p != null ? $"{p.Nombre} ({codigo})" : codigo;
     }
 
+    // Valida los datos de entrada y registra una nueva entidad en el sistema
     private async Task CrearVendedor()
     {
         mensajeAlerta = null;
@@ -217,6 +232,7 @@
             return;
         }
 
+        // Valida que el identificador o cadena requerida no llegue nula ni vacía
         if (string.IsNullOrWhiteSpace(formularioVendedor.Fkcodpersona))
         {
             mensajeAlerta = "Debe seleccionar una persona obligatoriamente.";
@@ -236,6 +252,7 @@
         }
     }
 
+    // Ejecuta la operación 'IniciarEdicion' dentro de la capa correspondiente
     private void IniciarEdicion(Vendedor v)
     {
         modoEdicion = true;
@@ -259,6 +276,7 @@
         };
     }
 
+    // Limpia el formulario actual y regresa al modo de creación
     private void CancelarEdicion()
     {
         modoEdicion = false;
@@ -267,6 +285,7 @@
         listaErroresValidacion = null;
     }
 
+    // Envía petición PUT a la API para reemplazar toda la ficha del registro
     private async Task GuardarFichaCompleta()
     {
         mensajeAlerta = null;
@@ -284,6 +303,7 @@
         }
     }
 
+    // Envía petición PATCH a la API únicamente con los campos editados
     private async Task GuardarSoloLoCambiado()
     {
         mensajeAlerta = null;
@@ -325,6 +345,7 @@
         }
     }
 
+    // Elimina el registro especificado validando su existencia previa
     private async Task EliminarVendedor(int id)
     {
         if (modoEdicion && formularioVendedor.Id == id)

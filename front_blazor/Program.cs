@@ -58,31 +58,37 @@ builder.Services.AddHttpClient<ServicioUsuario>(cliente =>
 // REGISTROS VERSIÓN 2 (TABLAS CON CLAVE FORÁNEA)
 // ==============================================================
 
+// Registra cliente HTTP tipado hacia la API REST para ser inyectado en componentes Blazor
 builder.Services.AddHttpClient<ServicioCliente>(cliente =>
 {
     cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
 });
 
+// Registra cliente HTTP tipado hacia la API REST para ser inyectado en componentes Blazor
 builder.Services.AddHttpClient<ServicioVendedor>(cliente =>
 {
     cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
 });
 
+// Registra cliente HTTP tipado hacia la API REST para ser inyectado en componentes Blazor
 builder.Services.AddHttpClient<ServicioFactura>(cliente =>
 {
     cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
 });
 
+// Registra cliente HTTP tipado hacia la API REST para ser inyectado en componentes Blazor
 builder.Services.AddHttpClient<ServicioRolUsuario>(cliente =>
 {
     cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
 });
 
+// Registra cliente HTTP tipado hacia la API REST para ser inyectado en componentes Blazor
 builder.Services.AddHttpClient<ServicioRutaRol>(cliente =>
 {
     cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");
 });
 
+// Registra cliente HTTP tipado hacia la API REST para ser inyectado en componentes Blazor
 builder.Services.AddHttpClient<ServicioUsuarioConRoles>(cliente =>
 {
     cliente.BaseAddress = new Uri(urlApi.TrimEnd('/') + "/");

@@ -13,11 +13,14 @@ namespace ApiFacturas.Modelos;
 public class RolUsuario
 {
     [JsonPropertyName("fkemail")]
+    // Propiedad 'Fkemail' (string) mapeada desde SQL Server o JSON
     public string Fkemail { get; set; } = string.Empty;
 
     [JsonPropertyName("fkidrol")]
+    // Propiedad 'Fkidrol' (int) mapeada desde SQL Server o JSON
     public int Fkidrol { get; set; }
 
     [JsonPropertyName("nombre_rol")]
+    // Propiedad 'NombreRol' (string?) mapeada desde SQL Server o JSON
     public string? NombreRol { get; set; }
 }

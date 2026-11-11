@@ -12,7 +12,9 @@ namespace ApiFacturas.Modelos;
 /// </summary>
 public class Vendedor
 {
+    // Propiedad 'Id' (int) mapeada desde SQL Server o JSON
     public int Id { get; set; }
+    // Propiedad 'Carnet' (int) mapeada desde SQL Server o JSON
     public int Carnet { get; set; }
     public required string Direccion { get; set; }
     public required string Fkcodpersona { get; set; }

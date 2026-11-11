@@ -1,11 +1,16 @@
+@* Rutas URL que abren esta pantalla de inicio de sesión *@
 @page "/sesion"
 @page "/login"
+@* Servicio HTTP que envía POST /api/sesion y obtiene las rutas permitidas *@
 @inject FrontFacturas.Servicios.ServicioSesion ServicioSesion
+@* Estado Scoped de la sesión en el circuito actual del navegador *@
 @inject FrontFacturas.Servicios.EstadoSesion EstadoSesion
+@* Administrador de rutas para redirigir al usuario tras autenticarse *@
 @inject NavigationManager Navigation
 
 <PageTitle>Iniciar Sesión — Versión 3</PageTitle>
 
+<!-- Contenedor centrado tipo tarjeta para el formulario de autenticación -->
 <div class="row justify-content-center mt-4">
     <div class="col-md-6 col-lg-5">
         <div class="card shadow-sm border-0">
@@ -16,6 +21,7 @@
             <div class="card-body p-4">
                 @if (EstadoSesion.EstaAutenticado)
                 {
+                    <!-- Si el usuario ya está autenticado, muestra su información y botón para cerrar sesión -->
                     <div class="alert alert-success text-center">
                         <h5>¡Ya has iniciado sesión!</h5>
                         <p class="mb-1">Conectado como: <strong>@EstadoSesion.Email</strong></p>
@@ -28,6 +34,7 @@
                 }
                 else
                 {
+                    <!-- Si hubo error de autenticación (ej. 401 Credenciales inválidas), muestra alerta roja -->
                     @if (!string.IsNullOrWhiteSpace(_errorMensaje))
                     {
                         <div class="alert alert-danger d-flex align-items-center" role="alert">
@@ -37,16 +44,20 @@
                         </div>
                     }
 
+                    <!-- Formulario reactivo en Blazor; @onsubmit invoca el método C# IniciarSesion sin recargar la página -->
                     <form @onsubmit="IniciarSesion">
                         <div class="mb-3">
                             <label class="form-label font-weight-bold">Correo Electrónico:</label>
+                            <!-- Enlace bidireccional (@bind) con el campo _email -->
                             <input type="email" class="form-control" @bind="_email" placeholder="ej: admin@correo.com" required autofocus />
                         </div>
                         <div class="mb-3">
                             <label class="form-label font-weight-bold">Contraseña:</label>
+                            <!-- Enlace bidireccional (@bind) con el campo _contrasena enmascarado -->
                             <input type="password" class="form-control" @bind="_contrasena" placeholder="Tu contraseña" required />
                         </div>
                         <div class="d-grid gap-2 mt-4">
+                            <!-- Deshabilita el botón mientras _cargando es true para evitar envíos duplicados -->
                             <button type="submit" class="btn btn-primary btn-lg" disabled="@_cargando">
                                 @if (_cargando)
                                 {
@@ -63,6 +74,7 @@
 
                     <hr class="my-4" />
 
+                    <!-- Guía visual rápida de usuarios semilla con distintos niveles de permisos (Admin, Vendedor, Cliente) -->
                     <div class="bg-light p-3 rounded border">
                         <h6 class="text-secondary mb-2">Credenciales de Prueba (Quickstart):</h6>
                         <ul class="list-unstyled small mb-0">
@@ -78,11 +90,18 @@
 </div>
 
 @code {
+    // Campos ligados a los inputs del formulario
     private string _email = "";
     private string _contrasena = "";
+    // Mensaje de error recibido de la API cuando las credenciales fallan o hay desconexión
     private string? _errorMensaje;
+    // Bandera para mostrar el spinner mientras responde POST /api/sesion
     private bool _cargando;
 
+    /// <summary>
+    /// Envía el correo y contraseña a ServicioSesion.IniciarSesionAsync.
+    /// Si la API valida la clave con BCrypt y devuelve el JWT, guarda la sesión en memoria y redirige al inicio ('/').
+    /// </summary>
     private async Task IniciarSesion()
     {
         _errorMensaje = null;
@@ -90,6 +109,7 @@
 
         try
         {
+            // Llama a POST /api/sesion y luego consulta GET /api/permisos/mios para armar el menú
             var (exito, mensaje) = await ServicioSesion.IniciarSesionAsync(_email, _contrasena);
             if (exito)
             {
@@ -97,6 +117,7 @@
             }
             else
             {
+                // Muestra exactamente el mismo mensaje tanto para correo inexistente como para contraseña incorrecta (Criterio 2 v3)
                 _errorMensaje = mensaje;
             }
         }
@@ -106,9 +127,11 @@
         }
     }
 
+    /// <summary>
+    /// Cierra la sesión actual limpiando el token JWT de EstadoSesion.
+    /// </summary>
     private void Cerrar()
     {
         ServicioSesion.CerrarSesion();
     }
 }
-

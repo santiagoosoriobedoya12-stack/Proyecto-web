@@ -1,7 +1,12 @@
+@* Ruta URL en Blazor que renderiza esta página: '/permisos' *@
 @page "/permisos"
+@* Inyección de dependencia 'ServicioRutaRol' disponible bajo la variable 'ServicioRutaRol' *@
 @inject ServicioRutaRol ServicioRutaRol
+@* Inyección de dependencia 'ServicioRuta' disponible bajo la variable 'ServicioRuta' *@
 @inject ServicioRuta ServicioRuta
+@* Inyección de dependencia 'ServicioRol' disponible bajo la variable 'ServicioRol' *@
 @inject ServicioRol ServicioRol
+@* Activa el modo interactivo en servidor (SignalR/WebSocket) para eventos sin recargar la página *@
 @rendermode InteractiveServer
 
 <PageTitle>Permisos de Rutas — Sistema de Facturación v2</PageTitle>
@@ -13,6 +18,7 @@
     </div>
 </div>
 
+@* Muestra alerta si la API no responde o si el rol carece de permisos (403 Forbidden) *@
 @if (errorConexion)
 {
     <div class="alert alert-danger aviso-desconexion mb-4 shadow-sm" role="alert">
@@ -40,8 +46,10 @@
             <div class="tarjeta-body">
                 <div class="mb-3">
                     <label class="form-label">Ruta del Sistema</label>
+                    <!-- Selector dinámico alimentado por la API para elegir claves foráneas por nombre (Versión 2) -->
                     <select class="form-select" @bind="rutaSeleccionadaId">
                         <option value="0">-- Seleccione una Ruta --</option>
+                        @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                         @foreach (var rt in listaRutas)
                         {
                             <option value="@rt.Id">@rt.NombreRuta — @rt.Descripcion</option>
@@ -51,8 +59,10 @@
 
                 <div class="mb-3">
                     <label class="form-label">Rol Autorizado</label>
+                    <!-- Selector dinámico alimentado por la API para elegir claves foráneas por nombre (Versión 2) -->
                     <select class="form-select" @bind="rolSeleccionadoId">
                         <option value="0">-- Seleccione un Rol --</option>
+                        @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                         @foreach (var rl in listaRoles)
                         {
                             <option value="@rl.Id">@rl.Nombre (ID: @rl.Id)</option>
@@ -77,6 +87,7 @@
             </div>
             <div class="tarjeta-body p-0">
                 <div class="table-responsive">
+                    <!-- Tabla Bootstrap responsiva para mostrar el listado de registros de la API -->
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
@@ -96,6 +107,7 @@
                             }
                             else
                             {
+                                @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                                 @foreach (var p in listaPermisos)
                                 {
                                     <tr>
@@ -117,6 +129,7 @@
     </div>
 </div>
 
+@* Lógica C# del componente: estado en memoria, llamadas HTTP y manejo de eventos *@
 @code {
     private List<RutaRol> listaPermisos = new();
     private List<Ruta> listaRutas = new();
@@ -134,10 +147,12 @@
         await CargarDatos();
     }
 
+    // Consulta los datos desde la API manejando errores de red o falta de permisos (401/403)
     private async Task CargarDatos()
     {
         errorConexion = false;
         mensajeAlerta = null;
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             var tareaPermisos = ServicioRutaRol.ListarAsync();
@@ -156,6 +171,7 @@
         }
     }
 
+    // Ejecuta la operación 'AsignarPermiso' dentro de la capa correspondiente
     private async Task AsignarPermiso()
     {
         mensajeAlerta = null;
@@ -172,6 +188,7 @@
         }
     }
 
+    // Ejecuta la operación 'QuitarPermiso' dentro de la capa correspondiente
     private async Task QuitarPermiso(int idRuta, int idRol)
     {
         mensajeAlerta = null;

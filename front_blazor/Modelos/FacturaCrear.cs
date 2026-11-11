@@ -12,20 +12,25 @@ namespace FrontFacturas.Modelos;
 public class FacturaCrearDto
 {
     [JsonPropertyName("fkidcliente")]
+    // Propiedad 'Fkidcliente' (int) mapeada desde SQL Server o JSON
     public int Fkidcliente { get; set; }
 
     [JsonPropertyName("fkidvendedor")]
+    // Propiedad 'Fkidvendedor' (int) mapeada desde SQL Server o JSON
     public int Fkidvendedor { get; set; }
 
     [JsonPropertyName("productos")]
     public List<ItemFacturaCrearDto> Productos { get; set; } = new();
 }
 
+// Modelo / DTO 'ItemFacturaCrearDto': estructura fuertemente tipada que representa datos de tabla o petición JSON
 public class ItemFacturaCrearDto
 {
     [JsonPropertyName("codigo")]
+    // Propiedad 'Codigo' (string) mapeada desde SQL Server o JSON
     public string Codigo { get; set; } = string.Empty;
 
     [JsonPropertyName("cantidad")]
+    // Propiedad 'Cantidad' (int) mapeada desde SQL Server o JSON
     public int Cantidad { get; set; }
 }

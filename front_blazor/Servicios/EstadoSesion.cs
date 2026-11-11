@@ -16,6 +16,7 @@ public class EstadoSesion
 
     public event Action? AlCambiarEstado;
 
+    // Ejecuta la operación 'IniciarSesion' dentro de la capa correspondiente
     public void IniciarSesion(string token, string email, List<string> roles, List<string> rutas)
     {
         Token = token;
@@ -25,6 +26,7 @@ public class EstadoSesion
         AlCambiarEstado?.Invoke();
     }
 
+    // Ejecuta la operación 'CerrarSesion' dentro de la capa correspondiente
     public void CerrarSesion()
     {
         Token = null;
@@ -34,6 +36,7 @@ public class EstadoSesion
         AlCambiarEstado?.Invoke();
     }
 
+    // Ejecuta la operación 'TienePermiso' dentro de la capa correspondiente
     public bool TienePermiso(string ruta)
     {
         if (!EstaAutenticado) return false;

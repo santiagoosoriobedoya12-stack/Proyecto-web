@@ -1,5 +1,8 @@
+@* Ruta URL en Blazor que renderiza esta página: '/rutas' *@
 @page "/rutas"
+@* Inyección de dependencia 'ServicioRuta' disponible bajo la variable 'ServicioRuta' *@
 @inject ServicioRuta ServicioRuta
+@* Activa el modo interactivo en servidor (SignalR/WebSocket) para eventos sin recargar la página *@
 @rendermode InteractiveServer
 
 <PageTitle>Rutas — Sistema de Facturación v1</PageTitle>
@@ -9,6 +12,7 @@
     <span class="badge bg-secondary">Recurso: /rutas</span>
 </div>
 
+@* Muestra alerta si la API no responde o si el rol carece de permisos (403 Forbidden) *@
 @if (errorConexion)
 {
     <div class="alert alert-danger aviso-desconexion mb-4 shadow-sm" role="alert">
@@ -25,6 +29,7 @@
         @if (listaErroresValidacion != null && listaErroresValidacion.Count > 0)
         {
             <ul class="mb-0 mt-2">
+                @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                 @foreach (var err in listaErroresValidacion)
                 {
                     <li>@err</li>
@@ -107,6 +112,7 @@
                 else if (!errorConexion)
                 {
                     <div class="table-responsive">
+                        <!-- Tabla Bootstrap responsiva para mostrar el listado de registros de la API -->
                         <table class="table table-striped table-hover mb-0 align-middle">
                             <thead class="table-light">
                                 <tr>
@@ -117,6 +123,7 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                                 @foreach (var r in listaRutas)
                                 {
                                     <tr>
@@ -140,6 +147,7 @@
     </div>
 </div>
 
+@* Lógica C# del componente: estado en memoria, llamadas HTTP y manejo de eventos *@
 @code {
     private List<Ruta> listaRutas = new();
     private Ruta formularioRuta = new();
@@ -157,10 +165,12 @@
         await CargarRutas();
     }
 
+    // Consulta los datos desde la API manejando errores de red o falta de permisos (401/403)
     private async Task CargarRutas()
     {
         cargando = true;
         errorConexion = false;
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             listaRutas = await ServicioRuta.ListarAsync();
@@ -176,6 +186,7 @@
         }
     }
 
+    // Valida los datos de entrada y registra una nueva entidad en el sistema
     private async Task CrearRuta()
     {
         cargando = true;
@@ -200,6 +211,7 @@
         cargando = false;
     }
 
+    // Carga los datos de la fila seleccionada en el formulario para permitir edición PUT o PATCH
     private void CargarEnEdicion(Ruta r)
     {
         modoEdicion = true;
@@ -210,6 +222,7 @@
         formularioRuta = new Ruta { Id = r.Id, NombreRuta = r.NombreRuta, Descripcion = r.Descripcion };
     }
 
+    // Limpia el formulario actual y regresa al modo de creación
     private void CancelarEdicion()
     {
         modoEdicion = false;
@@ -219,6 +232,7 @@
         listaErroresValidacion = null;
     }
 
+    // Envía petición PUT a la API para reemplazar toda la ficha del registro
     private async Task GuardarFichaCompleta()
     {
         cargando = true;
@@ -243,6 +257,7 @@
         cargando = false;
     }
 
+    // Envía petición PATCH a la API únicamente con los campos editados
     private async Task GuardarSoloLoCambiado()
     {
         cargando = true;
@@ -284,6 +299,7 @@
         cargando = false;
     }
 
+    // Elimina el registro especificado validando su existencia previa
     private async Task EliminarRuta(int id)
     {
         cargando = true;

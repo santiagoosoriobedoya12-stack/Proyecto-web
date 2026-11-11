@@ -1,6 +1,10 @@
+// Excepciones tipadas de dominio (NoEncontradoExcepcion -> 404, ConflictoExcepcion -> 409)
 using ApiFacturas.Excepciones;
+// Entidades del dominio que representan las tablas de la base de datos
 using ApiFacturas.Modelos;
+// DTOs de entrada segregados por verbo HTTP (Crear, Reemplazo, Actualizar)
 using ApiFacturas.Peticiones;
+// Contratos e implementaciones de acceso a datos con Dapper
 using ApiFacturas.Repositorios;
 
 namespace ApiFacturas.Servicios;
@@ -13,6 +17,7 @@ public class ServicioCliente : IServicioCliente
 {
     private readonly IRepositorioCliente _repositorio;
 
+    // Constructor con inyección de dependencias: recibe la dependencia requerida y protege contra referencias nulas
     public ServicioCliente(IRepositorioCliente repositorio)
     {
         _repositorio = repositorio ?? throw new ArgumentNullException(nameof(repositorio));
@@ -23,8 +28,10 @@ public class ServicioCliente : IServicioCliente
     /// </summary>
     public async Task<List<Cliente>> ListarAsync(int limite)
     {
+        // Regla de negocio: impide solicitar listados con límite cero o negativo
         if (limite <= 0)
         {
+            // Lanza error de validación de argumento (se traduce a HTTP 400 Bad Request)
             throw new ArgumentException("El parámetro 'limite' debe ser un número entero mayor a 0.");
         }
 
@@ -38,12 +45,14 @@ public class ServicioCliente : IServicioCliente
     {
         if (id <= 0)
         {
+            // Lanza error de validación de argumento (se traduce a HTTP 400 Bad Request)
             throw new ArgumentException("El identificador del cliente debe ser un entero positivo.");
         }
 
         var cliente = await _repositorio.ObtenerPorIdAsync(id);
         if (cliente == null)
         {
+            // Lanza excepción de dominio cuando el registro no existe (se traduce a HTTP 404)
             throw new NoEncontradoExcepcion($"No existe un cliente con id = {id}");
         }
 
@@ -56,6 +65,7 @@ public class ServicioCliente : IServicioCliente
     /// </summary>
     public async Task<int> CrearAsync(ClienteCrear peticion)
     {
+        // Verifica que el cuerpo de la petición recibido no sea nulo
         if (peticion == null)
         {
             throw new ArgumentNullException(nameof(peticion));
@@ -79,9 +89,11 @@ public class ServicioCliente : IServicioCliente
     {
         if (id <= 0)
         {
+            // Lanza error de validación de argumento (se traduce a HTTP 400 Bad Request)
             throw new ArgumentException("El identificador del cliente debe ser un entero positivo.");
         }
 
+        // Verifica que el cuerpo de la petición recibido no sea nulo
         if (peticion == null)
         {
             throw new ArgumentNullException(nameof(peticion));
@@ -90,6 +102,7 @@ public class ServicioCliente : IServicioCliente
         var existe = await _repositorio.ObtenerPorIdAsync(id);
         if (existe == null)
         {
+            // Lanza excepción de dominio cuando el registro no existe (se traduce a HTTP 404)
             throw new NoEncontradoExcepcion($"No existe un cliente con id = {id}");
         }
 
@@ -110,17 +123,21 @@ public class ServicioCliente : IServicioCliente
     {
         if (id <= 0)
         {
+            // Lanza error de validación de argumento (se traduce a HTTP 400 Bad Request)
             throw new ArgumentException("El identificador del cliente debe ser un entero positivo.");
         }
 
+        // Verifica que el cuerpo de la petición recibido no sea nulo
         if (peticion == null || !peticion.TieneCamposModificados())
         {
+            // Lanza error de validación de argumento (se traduce a HTTP 400 Bad Request)
             throw new ArgumentException("No se envió ningún campo para actualizar.");
         }
 
         var existe = await _repositorio.ObtenerPorIdAsync(id);
         if (existe == null)
         {
+            // Lanza excepción de dominio cuando el registro no existe (se traduce a HTTP 404)
             throw new NoEncontradoExcepcion($"No existe un cliente con id = {id}");
         }
 
@@ -151,12 +168,14 @@ public class ServicioCliente : IServicioCliente
     {
         if (id <= 0)
         {
+            // Lanza error de validación de argumento (se traduce a HTTP 400 Bad Request)
             throw new ArgumentException("El identificador del cliente debe ser un entero positivo.");
         }
 
         var existe = await _repositorio.ObtenerPorIdAsync(id);
         if (existe == null)
         {
+            // Lanza excepción de dominio cuando el registro no existe (se traduce a HTTP 404)
             throw new NoEncontradoExcepcion($"No existe un cliente con id = {id}");
         }
 

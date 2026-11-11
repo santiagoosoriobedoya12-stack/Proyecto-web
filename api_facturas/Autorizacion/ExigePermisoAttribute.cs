@@ -1,6 +1,9 @@
 using System.Security.Claims;
+// Contratos e implementaciones de acceso a datos con Dapper
 using ApiFacturas.Repositorios;
+// Atributos [Authorize] y [AllowAnonymous] para proteger o abrir endpoints HTTP (Versión 3)
 using Microsoft.AspNetCore.Authorization;
+// Componentes base de ASP.NET Core MVC (ControllerBase, IActionResult, [HttpGet], [Route])
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -21,6 +24,7 @@ public class ExigePermisoAttribute : Attribute, IAsyncAuthorizationFilter
         _nombreRuta = nombreRuta;
     }
 
+    // Ejecuta la operación 'OnAuthorizationAsync' dentro de la capa correspondiente
     public async Task OnAuthorizationAsync(AuthorizationFilterContext context)
     {
         // 1. Si el endpoint tiene [AllowAnonymous] (ej. /api/sesion o /), omitir validación
@@ -43,6 +47,7 @@ public class ExigePermisoAttribute : Attribute, IAsyncAuthorizationFilter
                  ?? user.FindFirst("sub")?.Value 
                  ?? user.Identity.Name;
 
+        // Valida que el identificador o cadena requerida no llegue nula ni vacía
         if (string.IsNullOrWhiteSpace(email))
         {
             context.Result = new ObjectResult(new

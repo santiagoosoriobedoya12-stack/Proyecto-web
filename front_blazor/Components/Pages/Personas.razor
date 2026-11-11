@@ -1,5 +1,8 @@
+@* Ruta URL en Blazor que renderiza esta página: '/personas' *@
 @page "/personas"
+@* Inyección de dependencia 'ServicioPersona' disponible bajo la variable 'ServicioPersona' *@
 @inject ServicioPersona ServicioPersona
+@* Activa el modo interactivo en servidor (SignalR/WebSocket) para eventos sin recargar la página *@
 @rendermode InteractiveServer
 
 <PageTitle>Personas — Sistema de Facturación v1</PageTitle>
@@ -9,6 +12,7 @@
     <span class="badge bg-secondary">Recurso: /personas</span>
 </div>
 
+@* Muestra alerta si la API no responde o si el rol carece de permisos (403 Forbidden) *@
 @if (errorConexion)
 {
     <div class="alert alert-danger aviso-desconexion mb-4 shadow-sm" role="alert">
@@ -25,6 +29,7 @@
         @if (listaErroresValidacion != null && listaErroresValidacion.Count > 0)
         {
             <ul class="mb-0 mt-2">
+                @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                 @foreach (var err in listaErroresValidacion)
                 {
                     <li>@err</li>
@@ -111,6 +116,7 @@
                 else if (!errorConexion)
                 {
                     <div class="table-responsive">
+                        <!-- Tabla Bootstrap responsiva para mostrar el listado de registros de la API -->
                         <table class="table table-striped table-hover mb-0 align-middle">
                             <thead class="table-light">
                                 <tr>
@@ -122,6 +128,7 @@
                                 </tr>
                             </thead>
                             <tbody>
+                                @* Recorre cada registro de la colección para renderizar dinámicamente filas o tarjetas *@
                                 @foreach (var per in listaPersonas)
                                 {
                                     <tr>
@@ -146,6 +153,7 @@
     </div>
 </div>
 
+@* Lógica C# del componente: estado en memoria, llamadas HTTP y manejo de eventos *@
 @code {
     private List<Persona> listaPersonas = new();
     private Persona formularioPersona = new();
@@ -163,10 +171,12 @@
         await CargarPersonas();
     }
 
+    // Consulta los datos desde la API manejando errores de red o falta de permisos (401/403)
     private async Task CargarPersonas()
     {
         cargando = true;
         errorConexion = false;
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             listaPersonas = await ServicioPersona.ListarAsync();
@@ -182,6 +192,7 @@
         }
     }
 
+    // Valida los datos de entrada y registra una nueva entidad en el sistema
     private async Task CrearPersona()
     {
         cargando = true;
@@ -206,6 +217,7 @@
         cargando = false;
     }
 
+    // Carga los datos de la fila seleccionada en el formulario para permitir edición PUT o PATCH
     private void CargarEnEdicion(Persona per)
     {
         modoEdicion = true;
@@ -229,6 +241,7 @@
         };
     }
 
+    // Limpia el formulario actual y regresa al modo de creación
     private void CancelarEdicion()
     {
         modoEdicion = false;
@@ -238,6 +251,7 @@
         listaErroresValidacion = null;
     }
 
+    // Envía petición PUT a la API para reemplazar toda la ficha del registro
     private async Task GuardarFichaCompleta()
     {
         cargando = true;
@@ -262,6 +276,7 @@
         cargando = false;
     }
 
+    // Envía petición PATCH a la API únicamente con los campos editados
     private async Task GuardarSoloLoCambiado()
     {
         cargando = true;
@@ -305,6 +320,7 @@
         cargando = false;
     }
 
+    // Elimina el registro especificado validando su existencia previa
     private async Task EliminarPersona(string codigo)
     {
         cargando = true;

@@ -1,5 +1,8 @@
+// Códigos de estado HTTP estándar (NoContent, Unauthorized, Forbidden, Conflict)
 using System.Net;
+// Métodos de extensión para enviar y deserializar JSON directamente con HttpClient
 using System.Net.Http.Json;
+// Clases DTO usadas por los componentes de Blazor para mostrar y editar datos
 using FrontFacturas.Modelos;
 
 namespace FrontFacturas.Servicios;
@@ -10,10 +13,13 @@ namespace FrontFacturas.Servicios;
 /// </summary>
 public class ServicioUsuarioConRoles
 {
+    // Cliente HTTP inyectado para comunicarse con la API REST
     private readonly HttpClient _http;
+    // Estado de sesión Scoped que conserva el token JWT en memoria del circuito Blazor
     private readonly EstadoSesion _estadoSesion;
 
 
+    // Constructor con inyección de dependencias: recibe la dependencia requerida y protege contra referencias nulas
     public ServicioUsuarioConRoles(HttpClient http, EstadoSesion estadoSesion)
     {
         _http = http ?? throw new ArgumentNullException(nameof(http));
@@ -42,7 +48,9 @@ public class ServicioUsuarioConRoles
     /// </summary>
     public async Task<List<UsuarioConRoles>> ListarAsync()
     {
+        // Versión 3: Inserta el token JWT Bearer en la cabecera Authorization antes de enviar la petición HTTP
         Autorizar();
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             var respuesta = await _http.GetAsync("api/usuario-con-roles");
@@ -66,6 +74,7 @@ public class ServicioUsuarioConRoles
     /// </summary>
     public async Task<UsuarioConRoles?> ConsultarAsync(string email)
     {
+        // Versión 3: Inserta el token JWT Bearer en la cabecera Authorization antes de enviar la petición HTTP
         Autorizar();
         var respuesta = await _http.GetAsync($"api/usuario-con-roles/{email}");
         if (respuesta.StatusCode == HttpStatusCode.NotFound)
@@ -80,7 +89,9 @@ public class ServicioUsuarioConRoles
     /// </summary>
     public async Task<ResultadoOperacion> CrearAsync(string email, string contrasena, List<int> roles)
     {
+        // Versión 3: Inserta el token JWT Bearer en la cabecera Authorization antes de enviar la petición HTTP
         Autorizar();
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             var respuesta = await _http.PostAsJsonAsync("api/usuario-con-roles", new
@@ -95,6 +106,7 @@ public class ServicioUsuarioConRoles
 
             return await ExtraerErrorAsync(respuesta);
         }
+        // Captura falla de red o API apagada en el frontend para evitar caída y mostrar alerta
         catch (HttpRequestException ex)
         {
             return new ResultadoOperacion { Exitoso = false, Mensaje = $"Error de comunicación: {ex.Message}" };
@@ -110,7 +122,9 @@ public class ServicioUsuarioConRoles
     /// </summary>
     public async Task<ResultadoOperacion> ActualizarAsync(string email, string? contrasena, List<int> roles)
     {
+        // Versión 3: Inserta el token JWT Bearer en la cabecera Authorization antes de enviar la petición HTTP
         Autorizar();
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             var respuesta = await _http.PutAsJsonAsync($"api/usuario-con-roles/{email}", new
@@ -124,6 +138,7 @@ public class ServicioUsuarioConRoles
 
             return await ExtraerErrorAsync(respuesta);
         }
+        // Captura falla de red o API apagada en el frontend para evitar caída y mostrar alerta
         catch (HttpRequestException ex)
         {
             return new ResultadoOperacion { Exitoso = false, Mensaje = $"Error de comunicación: {ex.Message}" };
@@ -135,7 +150,9 @@ public class ServicioUsuarioConRoles
     /// </summary>
     public async Task<ResultadoOperacion> EliminarAsync(string email)
     {
+        // Versión 3: Inserta el token JWT Bearer en la cabecera Authorization antes de enviar la petición HTTP
         Autorizar();
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             var respuesta = await _http.DeleteAsync($"api/usuario-con-roles/{email}");
@@ -144,6 +161,7 @@ public class ServicioUsuarioConRoles
 
             return await ExtraerErrorAsync(respuesta);
         }
+        // Captura falla de red o API apagada en el frontend para evitar caída y mostrar alerta
         catch (HttpRequestException ex)
         {
             return new ResultadoOperacion { Exitoso = false, Mensaje = $"Error de comunicación: {ex.Message}" };
@@ -152,6 +170,7 @@ public class ServicioUsuarioConRoles
 
     private static async Task<ResultadoOperacion> ExtraerErrorAsync(HttpResponseMessage respuesta)
     {
+        // Bloque try: ejecuta la operación capturando excepciones de negocio, SQL o red para responder adecuadamente
         try
         {
             var error = await respuesta.Content.ReadFromJsonAsync<ErrorApi>();

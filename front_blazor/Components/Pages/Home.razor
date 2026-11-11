@@ -1,8 +1,11 @@
+@* Ruta raíz de la aplicación web Blazor *@
 @page "/"
+@* Inyecta el estado de sesión del usuario para mostrar si está autenticado o invitado a iniciar sesión *@
 @inject FrontFacturas.Servicios.EstadoSesion EstadoSesion
 
 <PageTitle>Inicio — FactuCorp ERP v4</PageTitle>
 
+<!-- Tarjeta de presentación general del proyecto incremental acumulado (v1 ⊂ v2 ⊂ v3 ⊂ v4) -->
 <div class="tarjeta mb-4">
     <div class="tarjeta-header d-flex justify-content-between align-items-center">
         <h2 class="h5 mb-0">Aplicación y Servicios Web — Versión 4 (Analítica, Reportes y Dashboard)</h2>
@@ -10,7 +13,7 @@
     </div>
     <div class="tarjeta-body">
         <p class="lead">
-            Bienvenido al sistema de facturación empresarial desarrollado según la metodología incremental acumulativa ($v1 \subset v2 \subset v3 \subset v4$).
+            Bienvenido al sistema de facturación empresarial desarrollado según la metodología incremental acumulativa (v1 ⊂ v2 ⊂ v3 ⊂ v4).
         </p>
         <p>
             En esta <strong>Versión 4</strong>, se completa el ciclo del software con la capa analítica de toma de decisiones:
@@ -18,8 +21,10 @@
             identidad corporativa profesional y protección transversal mediante tokens <strong>JWT</strong> y <strong>RBAC</strong>.
         </p>
 
+        <!-- Alerta dinámica según exista o no una sesión JWT iniciada -->
         @if (!EstadoSesion.EstaAutenticado)
         {
+            <!-- Aviso para usuarios anónimos invitándolos a autenticarse -->
             <div class="alert alert-warning d-flex justify-content-between align-items-center my-3">
                 <div>
                     <strong>⚠️ No has iniciado sesión:</strong> Debes identificarte para que la API te otorgue un token JWT y puedas acceder a los módulos autorizados para tu rol.
@@ -29,6 +34,7 @@
         }
         else
         {
+            <!-- Aviso de sesión autenticada mostrando correo, roles y número de permisos cargados -->
             <div class="alert alert-success d-flex justify-content-between align-items-center my-3">
                 <div>
                     <strong>✔ Sesión activa:</strong> Conectado como <strong>@EstadoSesion.Email</strong> con roles: <em>@string.Join(", ", EstadoSesion.Roles)</em>.
@@ -37,7 +43,9 @@
             </div>
         }
 
+        <!-- Mosaico de acceso rápido organizado por versión incremental -->
         <div class="row mt-4">
+            <!-- Tarjeta v1: Las 6 tablas independientes sin clave foránea -->
             <div class="col-md-3 mb-3">
                 <div class="card h-100 border shadow-sm p-3">
                     <h5 class="fw-bold text-primary">v1: Tablas Planas</h5>
@@ -52,6 +60,7 @@
                     </div>
                 </div>
             </div>
+            <!-- Tarjeta v2: Tablas dependientes con FK, Stored Procedures y Triggers -->
             <div class="col-md-3 mb-3">
                 <div class="card h-100 border shadow-sm p-3 border-warning">
                     <h5 class="fw-bold text-dark">v2: FK y SPs</h5>
@@ -65,6 +74,7 @@
                     </div>
                 </div>
             </div>
+            <!-- Tarjeta v3: Login JWT y gestión de permisos RBAC -->
             <div class="col-md-3 mb-3">
                 <div class="card h-100 border shadow-sm p-3 border-success">
                     <h5 class="fw-bold text-success">v3: Seguridad RBAC</h5>
@@ -76,6 +86,7 @@
                     </div>
                 </div>
             </div>
+            <!-- Tarjeta v4: Dashboard gerencial y explorador de las 10 consultas multitabla -->
             <div class="col-md-3 mb-3">
                 <div class="card h-100 border shadow-sm p-3 border-primary bg-light">
                     <h5 class="fw-bold text-primary">v4: Analítica y Reportes</h5>
@@ -88,6 +99,7 @@
             </div>
         </div>
         <hr />
+        <!-- Enlaces directos a la documentación interactiva Swagger y al endpoint raíz de salud -->
         <div class="d-flex gap-2">
             <a href="http://localhost:8035/swagger" target="_blank" class="btn btn-outline-secondary">
                 Documentación Swagger API (/swagger)
@@ -98,4 +110,3 @@
         </div>
     </div>
 </div>
-

@@ -1,3 +1,4 @@
+// Atributos de validación automática de modelos ([Required], [StringLength], [Range], [EmailAddress])
 using System.ComponentModel.DataAnnotations;
 
 namespace ApiFacturas.Peticiones;
@@ -15,18 +16,21 @@ public class ProductoActualizar
     /// Nombre opcional: Si se envía, no puede ser vacío ni superar 100 caracteres.
     /// </summary>
     [StringLength(100, MinimumLength = 1, ErrorMessage = "El campo nombre no puede estar vacío ni exceder 100 caracteres.")]
+    // Propiedad 'Nombre' (string?) mapeada desde SQL Server o JSON
     public string? Nombre { get; set; }
 
     /// <summary>
     /// Stock opcional: Si se envía, debe ser un entero mayor o igual a 0.
     /// </summary>
     [Range(0, int.MaxValue, ErrorMessage = "El campo stock debe ser un entero mayor o igual a 0.")]
+    // Propiedad 'Stock' (int?) mapeada desde SQL Server o JSON
     public int? Stock { get; set; }
 
     /// <summary>
     /// Valor unitario opcional: Si se envía, debe ser un número decimal mayor o igual a 0.
     /// </summary>
     [Range(0.0, (double)decimal.MaxValue, ErrorMessage = "El campo valorunitario debe ser un número mayor o igual a 0.")]
+    // Propiedad 'Valorunitario' (decimal?) mapeada desde SQL Server o JSON
     public decimal? Valorunitario { get; set; }
 
     /// <summary>

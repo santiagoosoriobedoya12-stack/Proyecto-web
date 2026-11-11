@@ -6,10 +6,12 @@
 
 IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = N'bdfacturas_sqlserver_local')
 BEGIN
+    -- Crea la base de datos oficial 'bdfacturas_sqlserver_local' si aún no existe en la instancia
     CREATE DATABASE [bdfacturas_sqlserver_local];
 END
 GO
 
+-- Selecciona la base de datos recién creada/existente como contexto activo
 USE [bdfacturas_sqlserver_local];
 GO
 
@@ -61,12 +63,14 @@ GO
 -- TABLAS INDEPENDIENTES (sin foreign keys)
 -- ============================================================
 
+-- [v1] Tabla independiente 1/6: Empresas jurídicas con código PK y razón social
 CREATE TABLE empresa (
     codigo NVARCHAR(10) NOT NULL,
     nombre NVARCHAR(100) NOT NULL,
     CONSTRAINT pk_empresa PRIMARY KEY (codigo)
 );
 
+-- [v1] Tabla independiente 2/6: Personas naturales con código PK, nombre, correo y teléfono
 CREATE TABLE persona (
     codigo NVARCHAR(10) NOT NULL,
     nombre NVARCHAR(100) NOT NULL,
@@ -75,6 +79,7 @@ CREATE TABLE persona (
     CONSTRAINT pk_persona PRIMARY KEY (codigo)
 );
 
+-- [v1] Tabla independiente 3/6: Catálogo de productos con existencias físicas (stock) y valor unitario
 CREATE TABLE producto (
     codigo NVARCHAR(10) NOT NULL,
     nombre NVARCHAR(100) NOT NULL,
@@ -83,12 +88,14 @@ CREATE TABLE producto (
     CONSTRAINT pk_producto PRIMARY KEY (codigo)
 );
 
+-- [v1] Tabla independiente 4/6: Roles del sistema (ej. Administrador, Vendedor) con ID autoincremental
 CREATE TABLE rol (
     id INT IDENTITY(1,1) NOT NULL,
     nombre NVARCHAR(50) NOT NULL,
     CONSTRAINT pk_rol PRIMARY KEY (id)
 );
 
+-- [v1] Tabla independiente 5/6: Interfaces y rutas protegibles (ej. 'interfaz.facturas') con nombre único
 CREATE TABLE ruta (
     id INT IDENTITY(1,1) NOT NULL,
     ruta NVARCHAR(100) NOT NULL,
@@ -97,6 +104,7 @@ CREATE TABLE ruta (
     CONSTRAINT uq_ruta UNIQUE (ruta)
 );
 
+-- [v1/v3] Tabla independiente 6/6: Credenciales de acceso (email PK y hash BCrypt en 'contrasena')
 CREATE TABLE usuario (
     email NVARCHAR(100) NOT NULL,
     contrasena NVARCHAR(200) NOT NULL,
@@ -108,6 +116,7 @@ GO
 -- TABLAS DEPENDIENTES (con foreign keys)
 -- ============================================================
 
+-- [v2] Tabla dependiente 1/6: Clientes vinculados obligatoriamente a 'persona' y opcionalmente a 'empresa'
 CREATE TABLE cliente (
     id INT IDENTITY(1,1) NOT NULL,
     credito DECIMAL(18,2) NOT NULL DEFAULT 0,
@@ -118,6 +127,7 @@ CREATE TABLE cliente (
     CONSTRAINT fk_cliente_empresa FOREIGN KEY (fkcodempresa) REFERENCES empresa(codigo)
 );
 
+-- [v2] Tabla dependiente 2/6: Vendedores con número de carnet y referencia obligatoria a 'persona'
 CREATE TABLE vendedor (
     id INT IDENTITY(1,1) NOT NULL,
     carnet INT NOT NULL,
@@ -127,6 +137,7 @@ CREATE TABLE vendedor (
     CONSTRAINT fk_vendedor_persona FOREIGN KEY (fkcodpersona) REFERENCES persona(codigo)
 );
 
+-- [v2] Tabla dependiente 3/6: Cabecera Maestro de facturación; total y estado los controla el motor BD
 CREATE TABLE factura (
     numero INT IDENTITY(1,1) NOT NULL,
     fecha DATETIME2 NOT NULL DEFAULT GETDATE(),
@@ -139,6 +150,7 @@ CREATE TABLE factura (
     CONSTRAINT fk_factura_vendedor FOREIGN KEY (fkidvendedor) REFERENCES vendedor(id)
 );
 
+-- [v2] Tabla dependiente 4/6: Detalle de ítems vendidos por factura (clave compuesta factura + producto)
 CREATE TABLE productosporfactura (
     fknumfactura INT NOT NULL,
     fkcodproducto NVARCHAR(10) NOT NULL,
@@ -149,6 +161,7 @@ CREATE TABLE productosporfactura (
     CONSTRAINT fk_prodfact_producto FOREIGN KEY (fkcodproducto) REFERENCES producto(codigo)
 );
 
+-- [v2/v3] Tabla puente M:N 5/6: Relaciona cada usuario con uno o varios roles asignados
 CREATE TABLE rol_usuario (
     fkemail NVARCHAR(100) NOT NULL,
     fkidrol INT NOT NULL,
@@ -157,6 +170,7 @@ CREATE TABLE rol_usuario (
     CONSTRAINT fk_rolusuario_rol FOREIGN KEY (fkidrol) REFERENCES rol(id)
 );
 
+-- [v2/v3] Tabla puente M:N 6/6: Define matriz de permisos indicando qué rol puede entrar a qué ruta
 CREATE TABLE rutarol (
     fkidruta INT NOT NULL,
     fkidrol INT NOT NULL,
@@ -197,6 +211,7 @@ BEGIN
         DECLARE @v_msg_err NVARCHAR(500);
         SET @v_msg_err = CONCAT(N'Stock insuficiente para producto ', @v_codigo_err,
             N'. Stock disponible: ', @v_stock_err, N', cantidad solicitada: ', @v_cantidad_err);
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50001, @v_msg_err, 1;
     END
 
@@ -253,6 +268,7 @@ BEGIN
         DECLARE @v_msg_err NVARCHAR(500);
         SET @v_msg_err = CONCAT(N'Stock insuficiente para producto ', @v_codigo_err,
             N'. Stock disponible: ', @v_stock_err, N', cantidad solicitada: ', @v_cantidad_err);
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50001, @v_msg_err, 1;
     END
 
@@ -313,6 +329,7 @@ GO
 -- PROCEDIMIENTOS ALMACENADOS - FACTURAS Y PRODUCTOS POR FACTURA
 -- ============================================================
 
+-- [v2] SP Transaccional: crea la factura maestro + su detalle JSON atómicamente (los cálculos los hace el trigger)
 CREATE PROCEDURE sp_insertar_factura_y_productosporfactura
     @p_fkidcliente INT,
     @p_fkidvendedor INT,
@@ -335,6 +352,7 @@ BEGIN
     IF @p_productos IS NULL
     BEGIN
         SET @v_msg = CONCAT(N'La factura requiere minimo ', @v_minimo, N' producto(s).');
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50002, @v_msg, 1;
     END
 
@@ -342,10 +360,12 @@ BEGIN
     IF @v_count < @v_minimo
     BEGIN
         SET @v_msg = CONCAT(N'La factura requiere minimo ', @v_minimo, N' producto(s).');
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50002, @v_msg, 1;
     END
 
     BEGIN TRY
+        -- Inicia transacción ACID: si algo falla más adelante, ROLLBACK deshace todos los cambios parciales
         BEGIN TRANSACTION;
 
         INSERT INTO factura (fkidcliente, fkidvendedor, total)
@@ -393,6 +413,7 @@ BEGIN
 
         SET @p_resultado = N'{"factura":' + @v_factura_json + N',"productos":' + ISNULL(@v_productos_json, N'[]') + N'}';
 
+        -- Confirma permanentemente todos los cambios de la transacción en disco
         COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
@@ -410,6 +431,7 @@ BEGIN
 END;
 GO
 
+-- [v2] SP de consulta puntual: devuelve la cabecera de una factura y su arreglo JSON de productos
 CREATE PROCEDURE sp_consultar_factura_y_productosporfactura
     @p_numero INT,
     @p_resultado NVARCHAR(MAX) OUTPUT
@@ -421,6 +443,7 @@ BEGIN
     BEGIN
         DECLARE @v_msg NVARCHAR(500);
         SET @v_msg = CONCAT(N'Factura ', @p_numero, N' no existe');
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50003, @v_msg, 1;
     END
 
@@ -454,6 +477,7 @@ BEGIN
 END;
 GO
 
+-- [v2] SP de listado completo: retorna todas las facturas con nombres resueltos y detalles anidados
 CREATE PROCEDURE sp_listar_facturas_y_productosporfactura
     @p_resultado NVARCHAR(MAX) OUTPUT
 AS
@@ -530,6 +554,7 @@ BEGIN
 END;
 GO
 
+-- [v2] SP de actualización: reemplaza renglones de factura activa recalculando inventario y totales
 CREATE PROCEDURE sp_actualizar_factura_y_productosporfactura
     @p_numero INT,
     @p_fkidcliente INT,
@@ -550,6 +575,7 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM factura WHERE numero = @p_numero)
     BEGIN
         SET @v_msg = CONCAT(N'Factura ', @p_numero, N' no existe');
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50004, @v_msg, 1;
     END
 
@@ -558,6 +584,7 @@ BEGIN
     IF @p_productos IS NULL
     BEGIN
         SET @v_msg = CONCAT(N'La factura requiere minimo ', @v_minimo, N' producto(s).');
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50004, @v_msg, 1;
     END
 
@@ -565,10 +592,12 @@ BEGIN
     IF @v_count < @v_minimo
     BEGIN
         SET @v_msg = CONCAT(N'La factura requiere minimo ', @v_minimo, N' producto(s).');
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50004, @v_msg, 1;
     END
 
     BEGIN TRY
+        -- Inicia transacción ACID: si algo falla más adelante, ROLLBACK deshace todos los cambios parciales
         BEGIN TRANSACTION;
 
         DELETE FROM productosporfactura WHERE fknumfactura = @p_numero;
@@ -618,6 +647,7 @@ BEGIN
 
         SET @p_resultado = N'{"factura":' + @v_factura_json + N',"productos":' + ISNULL(@v_productos_json, N'[]') + N'}';
 
+        -- Confirma permanentemente todos los cambios de la transacción en disco
         COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
@@ -635,6 +665,7 @@ BEGIN
 END;
 GO
 
+-- [v2] SP de eliminación: borra la factura y sus renglones ejecutando el trigger DELETE para reponer stock
 CREATE PROCEDURE sp_borrar_factura_y_productosporfactura
     @p_numero INT,
     @p_resultado NVARCHAR(MAX) OUTPUT
@@ -649,10 +680,12 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM factura WHERE numero = @p_numero)
     BEGIN
         SET @v_msg = CONCAT(N'Factura ', @p_numero, N' no existe');
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50005, @v_msg, 1;
     END
 
     BEGIN TRY
+        -- Inicia transacción ACID: si algo falla más adelante, ROLLBACK deshace todos los cambios parciales
         BEGIN TRANSACTION;
 
         SELECT @v_cantidad_productos = COUNT(*)
@@ -667,6 +700,7 @@ BEGIN
             N'"total_eliminado":' + CAST(@v_total AS NVARCHAR) + N',' +
             N'"productos_eliminados":' + CAST(@v_cantidad_productos AS NVARCHAR) + N'}';
 
+        -- Confirma permanentemente todos los cambios de la transacción en disco
         COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
@@ -678,6 +712,7 @@ BEGIN
 END;
 GO
 
+-- [v2] SP contable: anula lógicamente la factura ('anulada') y devuelve todas las unidades al stock
 CREATE PROCEDURE sp_anular_factura
     @p_numero INT,
     @p_resultado NVARCHAR(MAX) OUTPUT
@@ -693,6 +728,7 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM factura WHERE numero = @p_numero)
     BEGIN
         SET @v_msg = CONCAT(N'Factura ', @p_numero, N' no existe');
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50010, @v_msg, 1;
     END
 
@@ -700,10 +736,12 @@ BEGIN
     IF @v_estado = N'anulada'
     BEGIN
         SET @v_msg = CONCAT(N'Factura ', @p_numero, N' ya está anulada');
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50010, @v_msg, 1;
     END
 
     BEGIN TRY
+        -- Inicia transacción ACID: si algo falla más adelante, ROLLBACK deshace todos los cambios parciales
         BEGIN TRANSACTION;
 
         UPDATE p
@@ -723,6 +761,7 @@ BEGIN
             N'"productos_afectados":' + CAST(@v_cantidad_productos AS NVARCHAR) + N',' +
             N'"estado":"anulada"}';
 
+        -- Confirma permanentemente todos los cambios de la transacción en disco
         COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
@@ -738,6 +777,7 @@ GO
 -- PROCEDIMIENTOS ALMACENADOS - USUARIOS CON ROLES
 -- ============================================================
 
+-- [v2] SP compuesto: crea usuario + inserta roles en rol_usuario desde OPENJSON dentro de una transacción
 CREATE PROCEDURE crear_usuario_con_roles
     @p_email NVARCHAR(100),
     @p_contrasena NVARCHAR(200),
@@ -751,6 +791,7 @@ BEGIN
     DECLARE @v_roles_json NVARCHAR(MAX);
 
     BEGIN TRY
+        -- Inicia transacción ACID: si algo falla más adelante, ROLLBACK deshace todos los cambios parciales
         BEGIN TRANSACTION;
 
         INSERT INTO usuario (email, contrasena) VALUES (@p_email, @p_contrasena);
@@ -781,6 +822,7 @@ BEGIN
 
         SET @p_resultado = N'{"email":"' + @p_email + N'","roles":' + ISNULL(@v_roles_json, N'[]') + N'}';
 
+        -- Confirma permanentemente todos los cambios de la transacción en disco
         COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
@@ -798,6 +840,7 @@ BEGIN
 END;
 GO
 
+-- [v2] SP compuesto: actualiza contraseña (si viene no vacía) y sincroniza roles mediante OPENJSON
 CREATE PROCEDURE actualizar_usuario_con_roles
     @p_email NVARCHAR(100),
     @p_contrasena NVARCHAR(200),
@@ -811,6 +854,7 @@ BEGIN
     DECLARE @v_roles_json NVARCHAR(MAX);
 
     BEGIN TRY
+        -- Inicia transacción ACID: si algo falla más adelante, ROLLBACK deshace todos los cambios parciales
         BEGIN TRANSACTION;
 
         IF @p_contrasena IS NOT NULL AND @p_contrasena != N''
@@ -844,6 +888,7 @@ BEGIN
 
         SET @p_resultado = N'{"email":"' + @p_email + N'","roles":' + ISNULL(@v_roles_json, N'[]') + N'}';
 
+        -- Confirma permanentemente todos los cambios de la transacción en disco
         COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
@@ -861,6 +906,7 @@ BEGIN
 END;
 GO
 
+-- [v2] SP compuesto: elimina en orden seguro primero rol_usuario y luego usuario dentro de transacción
 CREATE PROCEDURE eliminar_usuario_con_roles
     @p_email NVARCHAR(100),
     @p_resultado NVARCHAR(MAX) OUTPUT
@@ -873,6 +919,7 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM usuario WHERE email = @p_email)
     BEGIN
         SET @v_msg = CONCAT(N'Usuario ', @p_email, N' no existe');
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50006, @v_msg, 1;
     END
 
@@ -883,6 +930,7 @@ BEGIN
 END;
 GO
 
+-- [v2] SP auxiliar: reemplaza la lista completa de roles de un usuario usando OPENJSON
 CREATE PROCEDURE actualizar_roles_usuario
     @p_email NVARCHAR(100),
     @p_roles_json NVARCHAR(MAX),
@@ -898,10 +946,12 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM usuario WHERE email = @p_email)
     BEGIN
         SET @v_msg = CONCAT(N'Usuario ', @p_email, N' no existe');
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50007, @v_msg, 1;
     END
 
     BEGIN TRY
+        -- Inicia transacción ACID: si algo falla más adelante, ROLLBACK deshace todos los cambios parciales
         BEGIN TRANSACTION;
 
         DELETE FROM rol_usuario WHERE fkemail = @p_email;
@@ -932,6 +982,7 @@ BEGIN
 
         SET @p_resultado = N'{"email":"' + @p_email + N'","roles":' + ISNULL(@v_roles_json, N'[]') + N'}';
 
+        -- Confirma permanentemente todos los cambios de la transacción en disco
         COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
@@ -949,6 +1000,7 @@ BEGIN
 END;
 GO
 
+-- [v2] SP de consulta: retorna un usuario junto con la lista de roles asignados en JSON
 CREATE PROCEDURE consultar_usuario_con_roles
     @p_email NVARCHAR(100),
     @p_resultado NVARCHAR(MAX) OUTPUT
@@ -962,6 +1014,7 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM usuario WHERE email = @p_email)
     BEGIN
         SET @v_msg = CONCAT(N'Usuario ', @p_email, N' no existe');
+        -- Lanza error T-SQL controlado que C# captura por número para responder HTTP 404/409/422
         THROW 50008, @v_msg, 1;
     END
 
@@ -977,6 +1030,7 @@ BEGIN
 END;
 GO
 
+-- [v2] SP de listado: retorna todos los usuarios con sus roles concatenados/anidados en JSON
 CREATE PROCEDURE listar_usuarios_con_roles
     @p_resultado NVARCHAR(MAX) OUTPUT
 AS
@@ -1029,6 +1083,7 @@ GO
 -- PROCEDIMIENTOS ALMACENADOS - PERMISOS (RBAC)
 -- ============================================================
 
+-- [v3] SP clave RBAC: cruza usuario -> rol_usuario -> rutarol para decidir en tiempo real si tiene acceso
 CREATE PROCEDURE verificar_acceso_ruta
     @p_email NVARCHAR(100),
     @p_fkidruta INT,
@@ -1053,6 +1108,7 @@ BEGIN
 END;
 GO
 
+-- [v2/v3] SP puente: lista todos los permisos asignados cruzando ruta, rutarol y rol
 CREATE PROCEDURE listar_rutarol
     @p_resultado NVARCHAR(MAX) OUTPUT
 AS
@@ -1072,6 +1128,7 @@ BEGIN
 END;
 GO
 
+-- [v2/v3] SP puente: asigna permiso de una ruta a un rol validando que ambos padres existan
 CREATE PROCEDURE crear_rutarol
     @p_fkidruta INT,
     @p_fkidrol INT,
@@ -1103,6 +1160,7 @@ BEGIN
 END;
 GO
 
+-- [v2/v3] SP puente: revoca el permiso de una ruta para un rol (surtirá efecto inmediato en la v3)
 CREATE PROCEDURE eliminar_rutarol
     @p_fkidruta INT,
     @p_fkidrol INT,

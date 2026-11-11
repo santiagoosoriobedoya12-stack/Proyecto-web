@@ -1,12 +1,23 @@
+@* Importaciones globales compartidas automáticamente por TODOS los componentes .razor de la aplicación *@
+@* Clases HTTP base como HttpClient y HttpRequestException *@
 @using System.Net.Http
+@* Métodos de extensión como GetFromJsonAsync y PostAsJsonAsync *@
 @using System.Net.Http.Json
+@* Componentes de formularios y validaciones *@
 @using Microsoft.AspNetCore.Components.Forms
+@* NavLink y Router para navegación SPA sin recarga *@
 @using Microsoft.AspNetCore.Components.Routing
+@* Eventos DOM (@onclick) y RenderMode *@
 @using Microsoft.AspNetCore.Components.Web
+@* Puente de interoperabilidad hacia JavaScript si se requiere *@
 @using Microsoft.JSInterop
+@* Espacio de nombres raíz del proyecto Blazor *@
 @using FrontFacturas
+@* Componentes base (App, Routes) *@
 @using FrontFacturas.Components
+@* Plantillas compartidas (MainLayout, NavMenu, SesionActual) *@
 @using FrontFacturas.Components.Layout
+@* Entidades DTO usadas en formularios y tablas *@
 @using FrontFacturas.Modelos
+@* Clientes HTTP tipados que llaman a la API *@
 @using FrontFacturas.Servicios
-

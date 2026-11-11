@@ -6,6 +6,7 @@ namespace ApiFacturas.Modelos;
 /// </summary>
 public class Rol
 {
+    // Propiedad 'Id' (int) mapeada desde SQL Server o JSON
     public int Id { get; set; }
     public required string Nombre { get; set; }
 }

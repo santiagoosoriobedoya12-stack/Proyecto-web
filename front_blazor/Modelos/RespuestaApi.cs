@@ -10,12 +10,15 @@ namespace FrontFacturas.Modelos;
 public class RespuestaListado<T>
 {
     [JsonPropertyName("tabla")]
+    // Propiedad 'Tabla' (string?) mapeada desde SQL Server o JSON
     public string? Tabla { get; set; }
 
     [JsonPropertyName("limite")]
+    // Propiedad 'Limite' (int) mapeada desde SQL Server o JSON
     public int Limite { get; set; }
 
     [JsonPropertyName("total")]
+    // Propiedad 'Total' (int) mapeada desde SQL Server o JSON
     public int Total { get; set; }
 
     [JsonPropertyName("datos")]
@@ -28,12 +31,15 @@ public class RespuestaListado<T>
 public class ErrorApi
 {
     [JsonPropertyName("estado")]
+    // Propiedad 'Estado' (int) mapeada desde SQL Server o JSON
     public int Estado { get; set; }
 
     [JsonPropertyName("mensaje")]
+    // Propiedad 'Mensaje' (string?) mapeada desde SQL Server o JSON
     public string? Mensaje { get; set; }
 
     [JsonPropertyName("detalle")]
+    // Propiedad 'Detalle' (string?) mapeada desde SQL Server o JSON
     public string? Detalle { get; set; }
 
     [JsonPropertyName("errores")]
@@ -46,7 +52,9 @@ public class ErrorApi
 /// </summary>
 public class ResultadoOperacion
 {
+    // Propiedad 'Exitoso' (bool) mapeada desde SQL Server o JSON
     public bool Exitoso { get; set; }
+    // Propiedad 'Mensaje' (string) mapeada desde SQL Server o JSON
     public string Mensaje { get; set; } = string.Empty;
     public List<string>? ErroresValidacion { get; set; }
 }
