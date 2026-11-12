@@ -1,14 +1,10 @@
 # ==============================================================
-# Proyecto Aplicación y Servicios Web — versión 1:
-# api_facturas (C#/ASP.NET Core) + SQL Server
+# Proyecto Aplicación y Servicios Web — Stack 100% Python (v1 ⊂ v2 ⊂ v3)
 #
-#   Navegador → API FACTURAS (C#, :8032) → SQL Server (bdfacturas)
+#   Navegador → FRONT PYTHON (FastAPI + Jinja2, :8099) → API PYTHON (FastAPI, :8035) → SQL Server (bdfacturas)
 #
 # Uso: docker compose up -d --build     (UN solo comando)
-# Reset de la BD: docker compose down -v && docker compose up -d
-#
-# Este archivo CRECE por versiones: v3 suma un segundo motor,
-# v5 el front Blazor.
+# Reset de la BD: docker compose down -v && docker compose up -d --build
 # ==============================================================
 services:
 
@@ -33,9 +29,6 @@ services:
       start_period: 30s    # margen de gracia: SQL Server tarda en arrancar
 
   # --- Inicializador (crea bdfacturas la primera vez y termina) ---
-  # SQL Server NO ejecuta scripts montados automáticamente (a diferencia
-  # de otros motores): este contenedor se conecta, corre db/init.sh UNA
-  # vez, y muere. Si la BD ya existe, no hace nada.
   sqlserver-init:
     image: mcr.microsoft.com/mssql/server:2022-latest
     depends_on:
@@ -48,22 +41,17 @@ services:
     entrypoint: ["/bin/bash", "/scripts/init.sh"]
     restart: "no"                      # corre una vez; no revive
 
-  # --- API Facturas v1 — C# / ASP.NET Core ---
+  # --- API Facturas en Python (FastAPI + PyMSSQL + PyJWT + BCrypt) ---
   api-facturas:
-    build: ./api_facturas
+    build: ./api_python
+    container_name: facturas-api-python
     volumes:
-      - ./api_facturas:/app      # el código montado: guardar un .cs recompila solo
-      - /app/bin                 # bin y obj quedan DENTRO del contenedor (Linux),
-      - /app/obj                 #   sin mezclarse con los compilados de Windows
+      - ./api_python:/app      # el código montado: uvicorn --reload recompila/recarga solo al guardar .py
     restart: unless-stopped
     ports:
-      - "8035:8032"              # http://localhost:8035 (v2 oficial)
+      - "8035:8032"              # http://localhost:8035 (oficial)
       - "8032:8032"              # http://localhost:8032 (retrocompatibilidad)
     environment:
-      # La cadena usa el NOMBRE del servicio como host (sqlserver,1433),
-      # no localhost: dentro de la red interna de compose los servicios
-      # se resuelven por nombre. Esta variable SOBREESCRIBE el valor de
-      # appsettings.json (ASP.NET lee "ConnectionStrings__X" así).
       ConnectionStrings__SqlServer: "Server=sqlserver,1433;Database=bdfacturas_sqlserver_local;User Id=sa;Password=Paradigmas123!;TrustServerCertificate=True;"
       Jwt__Key: "SuperClaveSecretaUltraSeguraParaFirmarJwtDeFacturas2026*"
       Jwt__Issuer: "ApiFacturas"
@@ -73,40 +61,24 @@ services:
       sqlserver-init:
         condition: service_completed_successfully
         # ↑ la API arranca cuando el inicializador TERMINÓ BIEN:
-        #   la BD ya existe con sus 12 tablas y datos.
+        #   la BD ya existe con sus 12 tablas, SPs, triggers y datos.
 
-  # ------------------------------------------------------------
-  # LA INTERFAZ GRAFICA (Blazor Server)
-  #
-  # Es un CONTENEDOR APARTE, y eso es lo que se quiere demostrar: la interfaz
-  # y la API son dos procesos distintos que se hablan por HTTP. Apague la API
-  # y la interfaz sigue en pie, con su aviso y sin una sola fila.
-  # ------------------------------------------------------------
-  front-blazor:
-    build: ./front_blazor
-    container_name: facturas-front-aysw-v1
+  # --- Interfaz Gráfica en Python (FastAPI + Jinja2 + Bootstrap local) ---
+  front-python:
+    build: ./front_python
+    container_name: facturas-front-python
     ports:
-      - "8099:8096"              # http://localhost:8099 (v2 oficial)
+      - "8099:8096"              # http://localhost:8099 (oficial)
       - "8096:8096"              # http://localhost:8096 (retrocompatibilidad)
     volumes:
-      # El codigo montado: `dotnet watch` recompila al guardar, sin reconstruir
-      # la imagen.
-      - ./front_blazor:/app
-      - /app/bin                 # bin y obj quedan DENTRO del contenedor (Linux),
-      - /app/obj                 #   sin mezclarse con los compilados de Windows.
-                                 #   Sin esto, dotnet watch llena el log de avisos
-                                 #   «ContentRoots path not fully qualified: C:/...»
-                                 #   que no significan nada y tapan los que si.
+      - ./front_python:/app      # uvicorn --reload recarga cambios en HTML/Python al instante
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      ASPNETCORE_URLS: "http://0.0.0.0:8096"
-      # El NOMBRE del servicio, no localhost: dentro del contenedor del front,
-      # localhost seria el front mismo.
+      # El NOMBRE del servicio en Docker, no localhost: dentro del contenedor del front,
+      # localhost sería el front mismo.
       UrlApi: "http://api-facturas:8032"
     depends_on:
-      # NO depende de la base: el front no tiene nada que hacer con ella.
+      # NO depende de la base de datos: el front solo habla HTTP con api-facturas.
       - api-facturas
 
 volumes:
   mssqldata:      # declaración del volumen nombrado (la "memoria" de la BD)
-

@@ -1,7 +1,7 @@
 # Versión 3 — El Control de Acceso: Seguridad, Autenticación y Autorización RBAC
 
 > **Módulo:** Seguridad en Servicios Web y Control de Acceso  
-> **Alcance:** Ponerle la puerta a lo que ya existe (proteger los 12 recursos con JWT y RBAC).  
+> **Alcance:** Ponerle la puerta a lo que ya existe (proteger los 12 recursos con JWT y RBAC en Python).  
 > **Enfoque Acumulativo:** $v1 \subset v2 \subset v3$ (Las 12 tablas de la v1 y v2 ya existen y operan; la v3 agrega la autenticación y la autorización).
 
 ---
@@ -16,14 +16,14 @@ Con la v2 cerrada, las **12 tablas** de `bdfacturas` son operables por la API y 
 
 ### Las tres piezas que llegan, y en este orden estricto:
 
-```
-   credenciales          token            permiso
-        │                  │                 │
-   AUTENTICA ────────►  SESIÓN  ────────► AUTORIZA
-   ¿quién es?         (lo recuerda)       ¿puede esto?
-        │                  │                 │
-  ServicioSesion      JwtBearer        ExigePermiso
-   + BCrypt           (middleware)   + verificar_acceso_ruta
+```text
+   credenciales               token                   permiso
+        │                       │                        │
+   AUTENTICA ────────►       SESIÓN     ────────►    AUTORIZA
+   ¿quién es?              (PyJWT HS256)             ¿puede esto?
+        │                       │                        │
+  ServicioSesion     exige_usuario_autenticado    exige_permiso("...")
+    + BCrypt                (Depends)            + verificar_acceso_ruta
 ```
 
 1. **La contraseña deja de viajar en claro:** Se guarda con hash `bcrypt` (costo 12) y se verifica contra el hash.
@@ -47,13 +47,13 @@ Con la v2 cerrada, las **12 tablas** de `bdfacturas` son operables por la API y 
 
 1. **El permiso lo decide la base (`verificar_acceso_ruta`):**
    - El procedimiento almacenado cruza `usuario → rol_usuario → rutarol → ruta`.
-   - **No se escribe el JOIN de permisos en C#** (para no duplicar la regla).
-   - **No se guardan los permisos dentro del token JWT:** Si se guardaran en el token, quitarle un permiso a un rol no surtiría efecto hasta que el token expire. Al consultarlo en cada petición, **quitar un permiso surte efecto de inmediato sin volver a identificarse (Criterio 7)**.
-2. **El token vive en el servidor (Blazor Server):**
-   - `EstadoSesion` es `scoped` (uno por circuito de usuario). El token nunca baja al navegador, previniendo ataques XSS.
-3. **El menú no es la protección (Criterio 9):**
-   - El endpoint `GET /api/permisos/mios` solo sirve para armar el menú visual.
-   - Si un usuario escribe la URL a mano (ej: `/usuarios`), la API responde **403 Forbidden** y muestra **cero filas**.
+   - **No se duplica la decisión de permisos en Python**.
+   - **No se guardan los permisos dentro del token JWT:** Si se guardaran en el token, quitarle un permiso a un rol no surtiría efecto hasta que el token expire. Al consultarlo en cada petición, **quitar un permiso surte efecto de inmediato sin volver a identificarse**.
+2. **El token vive en el servidor (`front_python/`):**
+   - La sesión autenticada vive en el diccionario en memoria del servidor FastAPI indexada por cookie `HttpOnly` (`factucorp_sid`). El token JWT nunca baja a `localStorage` ni al DOM.
+3. **El menú no es la protección:**
+   - El endpoint `GET /api/permisos/mios` solo sirve para armar el menú visual en Jinja2 (`base.html`).
+   - Si un usuario escribe la URL a mano (ej: `/usuarios`), la API responde **403 Forbidden** y la pantalla muestra alerta sin filas.
 
 ---
 
@@ -62,10 +62,10 @@ Con la v2 cerrada, las **12 tablas** de `bdfacturas` son operables por la API y 
 | Documento | Descripción |
 |---|---|
 | [2_spec.md](2_spec.md) | Especificación funcional oficial, alcance y los **10 criterios de aceptación** de la v3. |
-| [3_plan.md](3_plan.md) | Plan técnico: JwtBearer 9.0.10, BCrypt costo 12, atributo `[ExigePermiso]`, EstadoSesion scoped y los 5 tropiezos previstos. |
-| [4_research.md](4_research.md) | Investigación y decisiones: SHA-256 vs bcrypt, costo 12, cookie vs JWT, permisos en token vs consultados en BD, ClockSkew en cero. |
-| [5_data_model.md](5_data_model.md) | Las 5 tablas del control de acceso (`usuario`, `rol`, `ruta`, `rol_usuario`, `rutarol`), el SP `verificar_acceso_ruta` y el resembrado de la semilla. |
+| [3_plan.md](3_plan.md) | Plan técnico: `PyJWT`, `bcrypt` costo 12, dependencias FastAPI (`exige_permiso`) y sesión en servidor Python. |
+| [4_research.md](4_research.md) | Investigación y decisiones: SHA-256 vs bcrypt, costo 12, permisos en BD vs token, `leeway=0`. |
+| [5_data_model.md](5_data_model.md) | Las 5 tablas del control de acceso (`usuario`, `rol`, `ruta`, `rol_usuario`, `rutarol`), el SP `verificar_acceso_ruta` y las contraseñas hash. |
 | [6_contracts.md](6_contracts.md) | Contratos exactos: `POST /api/sesion`, `GET /api/permisos/mios`, formato del 401 y 403, y matriz de respuestas por rol. |
 | [7_quickstart.md](7_quickstart.md) | Guía de prueba de humo con `curl` para los 10 criterios, contraseñas conocidas y verificación en navegador. |
 | [8_tasks.md](8_tasks.md) | Orden inmutable de construcción por fases (Fase 0 a Fase 10), con verificación paso a paso. |
-| [prompts.md](prompts.md) | Bitácora de prompts de IA utilizados para diseñar y construir la seguridad, autenticación y RBAC. |
+| [prompts.md](prompts.md) | Bitácora de prompts de IA utilizados para diseñar y construir la seguridad, autenticación y RBAC en Python. |

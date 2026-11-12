@@ -184,9 +184,7 @@ Cliente        inicio, productos
 { "estado": 401, "mensaje": "No hay una sesion valida. Inicie sesion." }
 ```
 
-> **Esto hay que escribirlo a mano** (`OnChallenge`). Por defecto ASP.NET
-> responde el 401 con el cuerpo **vacío**, y la interfaz no tiene nada que
-> mostrarle a la persona.
+> **Manejado globalmente en `api_python/main.py`** (`manejar_401` ante `NoAutenticadoExcepcion`), garantizando que todo rechazo `401` entregue un cuerpo JSON descriptivo legible por el frontend.
 
 ---
 

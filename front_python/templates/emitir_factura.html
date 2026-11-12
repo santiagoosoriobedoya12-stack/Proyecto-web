@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Emitir Factura — FactuCorp ERP{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0">Emitir Nueva Factura (Maestro-Detalle)</h2>
+        <small class="text-muted">Solo se envía cliente, vendedor y cantidades. Los subtotales, el total y el descuento de stock los calcula SQL Server.</small>
+    </div>
+    <a href="/facturas" class="btn btn-outline-secondary btn-sm">Volver a Facturas</a>
+</div>
+
+{% if error_conexion %}<div class="alert alert-danger">{{ mensaje_error }}</div>{% endif %}
+{% if sin_permiso %}<div class="alert alert-danger">⛔ Acceso denegado (403): Su rol no tiene permiso para esta operacion.</div>{% endif %}
+{% if no_autenticado %}<div class="alert alert-warning">⚠️ Inicia sesión para emitir facturas.</div>{% endif %}
+{% if mensaje %}
+<div class="alert {{ 'alert-success' if exito else 'alert-danger' }}">
+    <strong>{{ '✔ ' if exito else '⚠️ ' }}</strong> {{ mensaje }}
+</div>
+{% endif %}
+
+{% if not sin_permiso and not no_autenticado %}
+<div class="tarjeta">
+    <div class="tarjeta-header fw-bold">Datos de Cabecera y Renglones de Productos</div>
+    <div class="tarjeta-body">
+        <form method="post" action="/emitir-factura">
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Cliente:</label>
+                    <select name="fkidcliente" class="form-select" required>
+                        {% for c in clientes %}
+                        <option value="{{ c.id }}">ID {{ c.id }} — {{ c.nombre_persona }} (Crédito: $ {{ c.credito }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Vendedor:</label>
+                    <select name="fkidvendedor" class="form-select" required>
+                        {% for v in vendedores %}
+                        <option value="{{ v.id }}">ID {{ v.id }} — {{ v.nombre_persona }} (Carnet {{ v.carnet }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <h6 class="fw-bold text-secondary mb-2">Renglones de Productos:</h6>
+            <div id="contenedor-items">
+                <div class="row g-2 mb-2 align-items-center fila-item">
+                    <div class="col-md-7">
+                        <select name="fkcodproducto" class="form-select" required>
+                            {% for p in productos %}
+                            <option value="{{ p.codigo }}">{{ p.codigo }} — {{ p.nombre }} (Stock: {{ p.stock }} | $ {{ p.valorunitario }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <input type="number" name="cantidad" class="form-control" min="1" value="1" required placeholder="Cantidad" />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-outline-danger w-100" onclick="quitarFila(this)">Quitar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-2 mb-4">
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="agregarFila()">+ Agregar otro producto</button>
+            </div>
+
+            <button type="submit" class="btn btn-success btn-lg">Emitir Factura en SQL Server</button>
+        </form>
+    </div>
+</div>
+
+<!-- Script vanilla mínimo para duplicar renglones en el formulario maestro-detalle -->
+<script>
+function agregarFila() {
+    const cont = document.getElementById('contenedor-items');
+    const primera = cont.querySelector('.fila-item');
+    const copia = primera.cloneNode(true);
+    copia.querySelector('input[name="cantidad"]').value = 1;
+    cont.appendChild(copia);
+}
+function quitarFila(btn) {
+    const cont = document.getElementById('contenedor-items');
+    if (cont.querySelectorAll('.fila-item').length > 1) {
+        btn.closest('.fila-item').remove();
+    }
+}
+</script>
+{% endif %}
+{% endblock %}

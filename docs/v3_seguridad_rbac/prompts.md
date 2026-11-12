@@ -1,74 +1,69 @@
-# Bitácora de Prompts — Versión 3: El Control de Acceso (Seguridad, JWT y RBAC)
+# Bitácora de Prompts — Versión 3: El Control de Acceso (Seguridad, JWT y RBAC en Python)
 
-> Este documento recopila los prompts de ingeniería de software asistida por IA utilizados para implementar la autenticación con JWT, el hash de contraseñas con BCrypt, el middleware de autorización RBAC con Stored Procedures, y la gestión de sesiones en Blazor Server.
+> Este documento recopila los prompts de ingeniería de software asistida por IA utilizados para implementar en **Python (FastAPI + Jinja2)** la autenticación con JWT, el hash de contraseñas con BCrypt, las dependencias de autorización RBAC con Stored Procedures y la gestión de sesiones en servidor.
 
 ---
 
 ## 1. Prompt de Semilla y Criptografía (Fases 1 y 2)
 ```text
-Actúa como un experto en ciberseguridad y .NET 10.
-1. Actualiza el script SQL db/bdfacturas.sql para re-sembrar la tabla 'usuario' utilizando hashes BCrypt con factor de costo 12 ($2a$12$).
-2. Garantiza que las contraseñas en claro coincidan con las del quickstart:
+Actúa como un experto en ciberseguridad y backend Python con FastAPI.
+1. Revisa el script SQL db/bdfacturas.sql verificando las cuentas de prueba con hash BCrypt ($2a$12$) y garantiza en api_python/servicios/servicio_v1.py y servicio_v2.py que toda creación o actualización de contraseña aplique bcrypt.hashpw(..., bcrypt.gensalt(rounds=12)).
+2. Mantén las credenciales documentadas para pruebas en 7_quickstart.md:
    - admin@correo.com: admin123
    - vendedor1@correo.com: vendedor123
    - cliente1@correo.com: cliente123
-3. En ApiFacturas.csproj agrega los paquetes:
-   - Microsoft.AspNetCore.Authentication.JwtBearer (9.0.10)
-   - BCrypt.Net-Next (4.0.3)
-4. Configura en appsettings.json y docker-compose.yml la clave secreta Jwt:Key de 32+ caracteres, Issuer y Audience.
+3. En api_python/requirements.txt agrega:
+   - pyjwt
+   - bcrypt
+4. Configura en api_python/config.py y docker-compose.yml la clave secreta Jwt__Key de 32+ caracteres, Issuer, Audience y ExpiracionMinutos.
 ```
 
 ---
 
 ## 2. Prompt del Módulo de Autenticación y Token (Fases 3 y 4)
 ```text
-Implementa el módulo de autenticación de la Versión 3 en ASP.NET Core:
-1. Crea Modelos/Sesion.cs y Peticiones/SesionCrear.cs ({ email, contrasena } en el cuerpo).
-2. Crea IServicioSesion y ServicioSesion:
-   - Consulta el usuario por email.
-   - Comprueba la contraseña contra el hash usando BCrypt.Verify().
-   - Genera el token JWT firmado con SymmetricSecurityKey conteniendo claims de email y roles.
-3. Crea SesionController.cs con POST /api/sesion:
-   - Decorado con [AllowAnonymous].
-   - Si las credenciales son incorrectas (email inexistente o contraseña errada), responde exactamente el MISMO error 401:
+Implementa el módulo de autenticación de la Versión 3 en FastAPI:
+1. En api_python/peticiones/esquemas.py agrega SesionCrear ({ email, contrasena }).
+2. Crea api_python/servicios/servicio_sesion.py:
+   - Consulta el usuario y sus roles mediante RepositorioAcceso.
+   - Comprueba la contraseña contra el hash guardado usando bcrypt.checkpw().
+   - Genera el token JWT HS256 con pyjwt incluyendo email (sub), roles y tiempos iat/exp sin incluir rutas de permisos.
+3. Crea api_python/routers/router_sesion.py con POST /api/sesion:
+   - Endpoint público (sin dependencia de token).
+   - Si las credenciales son incorrectas (email inexistente o clave errada), responde exactamente el MISMO HTTP 401:
      { "estado": 401, "mensaje": "El correo o la contrasena no son correctos." }
-4. En Program.cs registra AddAuthentication().AddJwtBearer() con:
-   - ClockSkew = TimeSpan.Zero (para no tolerar desfase de expiración).
-   - Evento OnChallenge que escribe el cuerpo JSON descriptivo para 401:
+4. En api_python/autorizacion/dependencias.py implementa exige_usuario_autenticado():
+   - Extrae Bearer token, valida firma/issuer/audience con leeway=0.
+   - Si falta o es inválido, lanza NoAutenticadoExcepcion mapeada en main.py a HTTP 401:
      { "estado": 401, "mensaje": "No hay una sesion valida. Inicie sesion." }
-   - Registra app.UseAuthentication() antes de app.UseAuthorization().
 ```
 
 ---
 
 ## 3. Prompt de Autorización RBAC Dinámica (Fases 5 y 6)
 ```text
-Implementa el control de acceso basado en roles mediante Stored Procedure:
-1. Crea IRepositorioAcceso y RepositorioAccesoSqlServer:
-   - Ejecuta 'EXEC verificar_acceso_ruta @p_email, @p_fkidruta, @p_resultado OUTPUT'.
-   - Traduce el nombre de la ruta (ej: 'interfaz.usuarios') a su ID numérico en la tabla 'ruta'.
-   - Si la ruta no existe, falla cerrado (tiene_acceso = false).
-2. Crea el filtro de autorización Autorizacion/ExigePermisoAttribute.cs:
-   - Intercepta la petición y valida el permiso en cada llamada consultando a la base de datos (para que quitar un permiso surta efecto inmediato sin re-loguearse).
-   - Si no tiene permiso, retorna HTTP 403 Forbidden:
+Implementa el control de acceso basado en roles mediante Stored Procedure en FastAPI:
+1. Crea api_python/repositorios/repositorio_acceso.py:
+   - Ejecuta el procedimiento almacenado 'verificar_acceso_ruta' en SQL Server vía PyMSSQL.
+   - Traduce el nombre de ruta ('interfaz.usuarios', etc.) a su ID numérico en la tabla 'ruta'.
+   - Si la ruta no existe en BD, falla cerrado (tiene_acceso = false).
+2. En api_python/autorizacion/dependencias.py crea la fábrica de dependencias exige_permiso(nombre_ruta: str):
+   - Depende de exige_usuario_autenticado y consulta a SQL Server en cada petición (para que revocar un rol aplique al instante sin esperar expiración del JWT).
+   - Si no tiene permiso, lanza SinPermisoExcepcion → HTTP 403 Forbidden:
      { "estado": 403, "mensaje": "Su rol no tiene permiso para esta operacion.", "ruta": "interfaz.x" }
-3. Decora los 12 controladores de negocio con [Authorize] y [ExigePermiso("interfaz.x")].
-4. Crea Controllers/PermisosController.cs con GET /api/permisos/mios:
-   - Extrae el email del token JWT.
-   - Retorna la lista de rutas autorizadas para armar el menú del front.
+3. Aplica Depends(exige_permiso("interfaz.x")) en todos los routers protegidos (router_v1.py, router_v2.py).
+4. En api_python/routers/router_sesion.py agrega GET /api/permisos/mios:
+   - Toma el email del token validado (no de la URL) y devuelve las rutas autorizadas para armar el menú del frontend.
 ```
 
 ---
 
-## 4. Prompt de Frontend Blazor Server (Fases 7, 8 y 9)
+## 4. Prompt de Frontend Python con FastAPI + Jinja2 (Fases 7, 8 y 9)
 ```text
-Implementa la gestión de sesiones y menús dinámicos en Blazor Server:
-1. Crea Servicios/EstadoSesion.cs registrado como SCOPED en DI (uno por circuito de usuario, nunca singleton).
-2. Crea Servicios/ServicioSesion.cs para consumir POST /api/sesion y guardar la sesión en EstadoSesion.
-3. Crea Components/Pages/Sesion.razor para inicio de sesión con alertas de error y Components/Layout/SesionActual.razor para botón de cerrar sesión.
-4. En los 12 servicios HTTP de Blazor (ServicioProducto, ServicioCliente, etc.), agrega el método Autorizar() para inyectar la cabecera 'Authorization: Bearer <token>' antes de cada llamada.
-5. En Components/App.razor, configura el modo interactivo sin renderizado previo:
-   <Routes @rendermode="@(new InteractiveServerRenderMode(prerender: false))" />
-6. En Components/Layout/NavMenu.razor, consume GET /api/permisos/mios para renderizar únicamente las opciones del menú autorizadas para el rol del usuario conectado.
+Implementa la gestión de sesiones y menús dinámicos en front_python/ (FastAPI + Jinja2):
+1. En front_python/servicios/cliente_api.py implementa un almacén de sesiones en memoria del servidor (SESIONES) vinculado únicamente mediante cookie HttpOnly ('factucorp_sid') para no exponer el JWT al navegador ni al DOM.
+2. Implementa POST /login y POST /cerrar-sesion en front_python/main.py consumiendo POST /api/sesion y GET /api/permisos/mios.
+3. En front_python/templates/sesion.html diseña la vista de inicio de sesión con alertas claras y en base.html muestra usuario conectado, roles y botón de cierre.
+4. En cliente_api.py, inyecta la cabecera 'Authorization: Bearer <token>' en cada llamada httpx y maneja respuestas 401 (sesión expirada), 403 (sin permiso), 409 (conflicto de BD) y 422 (validación).
+5. En front_python/templates/base.html renderiza dinámicamente las secciones de menú usando tiene_permiso(sesion, 'interfaz.x').
 ```
-

@@ -2,7 +2,7 @@
 
 > **Módulo:** Fundamentos y Arquitectura en Capas  
 > **Alcance:** Las 6 tablas que no dependen de ninguna otra entidad en la base de datos `bdfacturas`.  
-> **Patrón:** Vertical Slice Architecture (Controlador → Servicio → Repositorio → SQL Server).
+> **Patrón:** Vertical Slice Architecture en Python (Router → Servicio → Repositorio → SQL Server).
 
 ---
 
@@ -13,22 +13,22 @@ En la **Versión 1**, el objetivo fue construir los cimientos arquitectónicos d
 1. **`producto`**: Catálogo de artículos con código alfanumérico, nombre, stock y valor unitario.
 2. **`persona`**: Registro base de personas naturales con código único, nombre, correo electrónico y teléfono.
 3. **`empresa`**: Entidades jurídicas con código empresarial y razón social.
-4. **`rol`**: Roles de seguridad del sistema (ej. Administrador, Vendedor, Auditor).
+4. **`rol`**: Roles de seguridad del sistema (ej. Administrador, Vendedor, Cliente).
 5. **`ruta`**: Endpoints y vistas protegibles del sistema.
-6. **`usuario`**: Credenciales de acceso (email y contraseña).
+6. **`usuario`**: Credenciales de acceso (`email` y `contrasena`).
 
 ---
 
-## 2. Decisiones Clave de Arquitectura
+## 2. Decisiones Clave de Arquitectura en Python
 
-- **Separación Estricta de Responsabilidades:**
-  - **Controlador (`Controllers/`):** Solo conoce HTTP (códigos de estado 200, 201, 204, 400, 404, 422, 500), serialización JSON y rutas.
-  - **Servicio de Dominio (`Servicios/`):** Contiene las reglas del negocio puro (validaciones, cálculos). **No conoce HTTP** ni `IActionResult`. Si ocurre un fallo de negocio, lanza excepciones estándar o del dominio (`NoEncontradoExcepcion`, `ArgumentException`).
-  - **Repositorio (`Repositorios/`):** Encapsula el acceso a datos mediante **Dapper** y consultas SQL explícitas. **No conoce reglas ni HTTP**.
-- **Tres Clases de Petición por Recurso:**
-  - `*Crear.cs`: Todos los campos obligatorios para creación (`POST` → 201 Created).
-  - `*Reemplazo.cs`: Reemplazo total idempotente (`PUT` → 200 / 422 si falta algún campo).
-  - `*Actualizar.cs`: Actualización parcial (`PATCH` → 200 con solo los campos enviados).
+- **Separación Estricta de Responsabilidades (`api_python/`):**
+  - **Router (`routers/router_v1.py`):** Solo conoce HTTP (verbos FastAPI, códigos de estado `200`, `201`, `204`, `400`, `404`, `409`, `422`, `500`), serialización JSON y rutas.
+  - **Servicio de Dominio (`servicios/servicio_v1.py`):** Contiene las reglas del negocio puro (validaciones de clave, hash de contraseña). **No conoce HTTP**. Si ocurre un fallo de negocio, lanza excepciones de dominio (`NoEncontradoExcepcion`, `ValidacionNegocioExcepcion`, `ConflictoExcepcion`).
+  - **Repositorio (`repositorios/repositorio_v1.py`):** Encapsula el acceso a datos mediante **PyMSSQL** y consultas SQL parametrizadas explícitas (`%s`). **No conoce reglas ni HTTP**.
+- **Tres Esquemas Pydantic por Recurso (`peticiones/esquemas.py`):**
+  - `*Crear`: Campos obligatorios para creación (`POST` → `201 Created`).
+  - `*Reemplazo`: Reemplazo total idempotente (`PUT` → `200` / `422` si falta algún campo).
+  - `*Actualizar`: Todos los campos opcionales para actualización parcial (`PATCH` → `200` con solo los campos enviados).
 - **Sobre Estándar de Respuesta:**
   ```json
   {
@@ -37,9 +37,9 @@ En la **Versión 1**, el objetivo fue construir los cimientos arquitectónicos d
     "datos": [ ... ]
   }
   ```
-- **Front Blazor Server:**
-  - Vistas interactivas independientes (`Productos.razor`, `Personas.razor`, `Empresas.razor`, etc.).
-  - Consumo tipado mediante `HttpClient` inyectado en `Program.cs`.
+- **Frontend Python Independiente (`front_python/`):**
+  - Vistas Jinja2 servidas por FastAPI (`templates/crud_generico.html`) sin `pymssql`.
+  - Consumo HTTP asíncrono centralizado en `front_python/servicios/cliente_api.py` mediante `httpx`.
   - Resiliencia ante caídas de la API (alerta visual y conteo en 0 sin colapsar la interfaz).
 
 ---
@@ -49,11 +49,10 @@ En la **Versión 1**, el objetivo fue construir los cimientos arquitectónicos d
 | Documento | Descripción |
 |---|---|
 | [2_spec.md](2_spec.md) | Especificación de requerimientos, alcance y criterios de aceptación formales de la v1. |
-| [3_plan.md](3_plan.md) | Plan técnico: estructura de carpetas, capas, contratos de DTOs y dependencias. |
-| [4_research.md](4_research.md) | Análisis de alternativas: Dapper vs EF Core, excepciones de dominio vs códigos HTTP, diseño de peticiones. |
+| [3_plan.md](3_plan.md) | Plan técnico: estructura de carpetas, capas Python, esquemas Pydantic y dependencias. |
+| [4_research.md](4_research.md) | Análisis de alternativas: PyMSSQL vs ORM pesado, excepciones de dominio vs HTTP, validación por verbo. |
 | [5_data_model.md](5_data_model.md) | Estructura de las 6 tablas independientes en SQL Server. |
 | [6_contracts.md](6_contracts.md) | Especificación OpenAPI/REST de todos los endpoints de la v1 con ejemplos JSON exactos. |
 | [7_quickstart.md](7_quickstart.md) | Guía de arranque rápido con Docker Compose y pruebas con `curl`. |
 | [8_tasks.md](8_tasks.md) | Plan de tareas por fases verificables de construcción de la v1. |
-| [prompts.md](prompts.md) | Bitácora de prompts de IA utilizados para diseñar y construir cada una de las 6 tablas. |
-
+| [prompts.md](prompts.md) | Bitácora de prompts de IA utilizados para diseñar y construir las 6 tablas en Python. |

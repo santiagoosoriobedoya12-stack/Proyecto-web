@@ -34,12 +34,12 @@ null   ->  «este cliente no tiene empresa»                         ->  200
 
 | Opción | Argumento |
 |---|---|
-| **SQL en C#** | Más fácil de leer para quien no sabe SQL procedimental |
+| **SQL en Python** | Más fácil de leer para quien no sabe SQL procedimental |
 | **Procedimientos** ✅ | **La base ya los trae** —seis, escritos y probados— y la transacción es suya |
 
 ## D4 — La traducción de los errores del motor
 
-En SQL Server, las restricciones de clave foránea disparan el error 547 (`SqlException.Number == 547`), mientras que violaciones de unicidad disparan 2627 o 2601. Para los procedimientos con `THROW`, se identifican por el número (50001 stock insuficiente, 50003 no existe, 50010 ya anulada) o por el texto del mensaje («no existe», «ya está anulada»).
+En SQL Server, las restricciones de clave foránea disparan el error `547`, mientras que violaciones de unicidad disparan `2627` o `2601` (extraídos en `api_python/database.py` por `extraer_codigo_sql`). Para procedimientos con `THROW` / `RAISERROR` (`50000`+), se mapean también mensajes de stock insuficiente o factura ya anulada a `ConflictoExcepcion` (`409`).
 
 ## D5 — Un recurso `usuario-con-roles` además de los otros dos
 
@@ -54,9 +54,9 @@ Porque con dos llamadas, un fallo en la segunda deja un usuario sin roles. La ba
 
 **Todo junto, en un solo envío.** Criterio 13: agrega 3 renglones en memoria, quita 1, emite -> llegan 2.
 
-## D8 — Las interfaces de las tablas puente: ¿se llaman como la tabla?
+## D8 — Nombres descriptivos para las pantallas puente en `front_python/templates/`
 
-**No.** El nombre de un archivo `.razor` es el nombre de una clase. `RolUsuario.razor` taparía el modelo `RolUsuario` y no compilaría. De ahí: `RolesPorUsuario.razor` y `PermisosPorRol.razor`.
+En lugar de nombres genéricos de tabla, las vistas web se nombran por intención del usuario: `roles_por_usuario.html` y `permisos_por_rol.html`.
 
 ## D9 — Lo que NO se investigó, y por qué
 

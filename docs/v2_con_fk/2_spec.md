@@ -34,7 +34,7 @@ claves foráneas no existen:
 | | Qué aparece | Por qué la v1 no lo tenía |
 |---|---|---|
 | **1** | **La dependencia entre filas.** Un cliente no existe sin su persona, y el motor lo hace cumplir | Ninguna de las seis tablas de la v1 tenía clave foránea: no había nada que violar |
-| **2** | **La lógica que vive en la base.** `factura` es maestro-detalle, y sus reglas pesadas —subtotales, total, stock— las hacen **procedimientos almacenados y un disparador**, no C# | La v1 era SQL plano: un `SELECT` por operación |
+| **2** | **La lógica que vive en la base.** `factura` es maestro-detalle, y sus reglas pesadas —subtotales, total, stock— las hacen **procedimientos almacenados y un disparador**, no Python | La v1 era SQL plano: un `SELECT` por operación |
 | **3** | **El desplegable en vez del campo de texto.** La clave foránea se **elige** de una lista traída de la API | Sin claves foráneas no había nada que elegir |
 
 ```
@@ -135,7 +135,7 @@ eso no se programa: ya está.
 | **La API no calcula nada** | Ni subtotales, ni total, ni stock: eso es el disparador `trg_actualizar_totales_y_stock` |
 | **La API no inventa el orden** | El procedimiento inserta el encabezado y los renglones; si falla uno, no entra ninguno |
 
-> **Por qué así, y no con tres `INSERT` desde C#:** porque entonces la
+> **Por qué así, y no con tres `INSERT` desde Python:** porque entonces la
 > transacción la tendría que manejar la API, y el día que alguien cambie la
 > regla del total habría que cambiarla en dos sitios. Si un número sale mal, el
 > error se busca **en la base**, no en el servicio.
@@ -162,7 +162,7 @@ Los cinco procedimientos que la base ya trae:
 | | Por qué |
 |---|---|
 | **No se crea el usuario y después se le asignan los roles** | Si falla la segunda llamada queda un usuario **sin ningún rol** —que no puede hacer nada y que nadie sabe que está ahí—. `crear_usuario_con_roles` existe para que sea **una** |
-| **No se arma el `JOIN` en C#** | `listar_usuarios_con_roles` ya trae los roles pegados. Repetirlo en la API es tener la consulta en dos sitios |
+| **No se arma el `JOIN` en Python** | `listar_usuarios_con_roles` ya trae los roles pegados. Repetirlo en la API es tener la consulta en dos sitios |
 | **La contraseña vacía al editar significa «déjela como está»** | No significa borrarla. Sin esta regla, cambiarle un rol a alguien le borra la clave |
 | **Los roles se REEMPLAZAN, no se suman** | La lista que llega es la que queda |
 
@@ -233,12 +233,11 @@ varios—. Un solo envío.
 
 - **RNF1 — Los de la v1 siguen todos:** capas estrictas, sin ORM, SQL
   parametrizado, `async`, errores uniformes.
-- **RNF2 — La lógica de facturación NO se duplica en C#.** Ni subtotales, ni
+- **RNF2 — La lógica de facturación NO se duplica en Python.** Ni subtotales, ni
   total, ni stock. Si un número sale mal, el error está en la base.
-- **RNF3 — Los errores de la base también son contrato.** El repositorio
-  traduce los `RAISE EXCEPTION` de los procedimientos —todos llegan con
-  `el número de error P0001`, sin número— **por patrón del mensaje**: «no existe» → 404,
-  «anulada» → 409. Las señales de error del motor son parte de la interfaz.
+- **RNF3 — Los errores de la base también son contrato.** `api_python/database.py` y los repositorios
+  traducen los errores de SQL Server (`547` para FK, `2627`/`2601` para duplicados y `50000`+ de procedimientos)
+  **por código y patrón del mensaje**: «no existe» → `404`, «anulada» o «stock insuficiente» → `409`.
 - **RNF4 — Sin anticipación.** Ni fábricas, ni motores nuevos, ni token.
 
 ## 5. Criterios de aceptación

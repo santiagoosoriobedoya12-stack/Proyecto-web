@@ -82,19 +82,15 @@ http://localhost:8035/swagger
 | **Autorizado** | El mismo, después | **200** |
 | **El 403** | Cierre sesión (*Authorize* → *Logout*), entre como `vendedor1@correo.com` / `vendedor123`, autorice con **ese** token y pruebe `GET /api/usuario` | **403**, con la `ruta` que le faltó |
 
-> **`POST /api/sesion` muestra el candado como los demás** —el requisito está
-> declarado para toda la API— **y funciona sin token igual**, porque el
-> controlador es `[AllowAnonymous]`. El candado dice «esta API usa token», no
-> «este endpoint lo exige».
+> **`POST /api/sesion` es público** (no exige token porque es el encargado de emitirlo).
 
 ## 3. CRITERIO 1 — ninguna contraseña legible en la base
 
 ```powershell
-docker compose exec postgres sqlcmd -U postgres -d bdfacturas_sqlserver_local -c "SELECT email, contrasena FROM usuario;"
+docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Paradigmas123!" -C -d bdfacturas_sqlserver_local -Q "SELECT email, contrasena FROM usuario;"
 ```
 
-**Las ocho tienen que empezar por `$2a$12$`**, y ninguna puede ser una palabra
-legible.
+**Ninguna fila puede contener texto legible**, deben mostrar hashes BCrypt costo 12 (`$2a$12$` o `$2b$12$`):
 
 ```
 admin@correo.com          | $2a$12$PJf6LIuW8uL9q9hK0LsG0ebvUll.eLcJgg6lmTIPVk84p0fwD0T5u
@@ -210,15 +206,15 @@ curl.exe -i -H "Authorization: Bearer $tc" http://localhost:8035/api/cliente    
 ## 7. CRITERIO 6 — el permiso lo resuelve el procedimiento
 
 ```powershell
-docker compose exec api-facturas grep -rn "verificar_acceso_ruta" Repositorios/
+docker compose exec api-facturas grep -rn "verificar_acceso_ruta" repositorios/
 ```
 
-Tiene que aparecer **en `RepositorioAccesoSqlServer.cs`**, y el `JOIN` de
-permisos **no puede estar escrito en C# para decidir**.
+Tiene que aparecer **en `api_python/repositorios/repositorio_acceso.py`**, sin
+duplicar el `JOIN` de decisión en Python.
 
-> **Hay UN `JOIN` de permisos en C#, en `RutasPermitidasAsync`, y no
-> contradice esto: no decide nada.** Es una lista para dibujar un menú. La
-> decisión la toma el procedimiento, y solo él.
+> **Para el menú (`rutas_permitidas`), `RepositorioAcceso` sí consulta las rutas
+> autorizadas del usuario autenticado**, porque solo dibuja el menú en `front_python`.
+> La decisión de permitir o bloquear un endpoint (`403`) la toma siempre el procedimiento almacenado.
 
 ---
 
@@ -231,13 +227,13 @@ permisos **no puede estar escrito en C# para decidir**.
 curl.exe -i -H "Authorization: Bearer $tv" http://localhost:8035/api/cliente      # -> 200
 
 # 2. se le quita a su rol (Vendedor = 2) el permiso de interfaz.clientes (ruta 4)
-docker compose exec postgres sqlcmd -U postgres -d bdfacturas_sqlserver_local -c "DELETE FROM rutarol WHERE fkidruta=4 AND fkidrol=2;"
+docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Paradigmas123!" -C -d bdfacturas_sqlserver_local -Q "DELETE FROM rutarol WHERE fkidruta=4 AND fkidrol=2;"
 
 # 3. CON EL MISMO TOKEN, sin volver a entrar
 curl.exe -i -H "Authorization: Bearer $tv" http://localhost:8035/api/cliente      # -> 403
 
 # 4. se le devuelve
-docker compose exec postgres sqlcmd -U postgres -d bdfacturas_sqlserver_local -c "INSERT INTO rutarol (fkidruta, fkidrol) VALUES (4, 2);"
+docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Paradigmas123!" -C -d bdfacturas_sqlserver_local -Q "INSERT INTO rutarol (fkidruta, fkidrol) VALUES (4, 2);"
 
 # 5. con el mismo token otra vez
 curl.exe -i -H "Authorization: Bearer $tv" http://localhost:8035/api/cliente      # -> 200
@@ -291,17 +287,17 @@ clave foránea.** La v3 no rompió nada.
 
 ## 10. CRITERIOS 8 y 9 — en el NAVEGADOR
 
-**Estos dos no se pueden comprobar con `curl`**, y conviene decir por qué: la
-interfaz gráfica guarda el token **en el circuito de Blazor Server** —en memoria
-del servidor, atado a la conexión del navegador—. Una petición de `curl` no
-tiene circuito, así que no tiene sesión.
+**Estos dos se comprueban en la web de `front_python`**, porque la interfaz
+guarda el token **en memoria del servidor Python (`SESIONES`)** vinculado
+únicamente mediante una cookie `HttpOnly` (`factucorp_sid`). Una petición
+anónima de `curl` no envía esa cookie de sesión.
 
 Abra `http://localhost:8099`.
 
 | | Qué hacer | Qué tiene que pasar |
 |---|---|---|
 | **8a** | Entrar sin identificarse | El menú tiene **una** entrada: «Iniciar sesión» |
-| **8b** | Entrar como `admin@correo.com` / `admin123` | El menú muestra **las 12** interfaces, y arriba sale el correo con la etiqueta «Administrador» |
+| **8b** | Entrar como `admin@correo.com` / `admin123` | El menú muestra todas las interfaces, y arriba sale el correo con la etiqueta «Administrador» |
 | **8c** | Salir y entrar como `vendedor1@correo.com` / `vendedor123` | El menú muestra **Facturas y Clientes**, y **NO** Usuarios, Personas, Empresas, Roles, Rutas ni Productos |
 | **8d** | Salir y entrar como `cliente1@correo.com` / `cliente123` | El menú muestra **Productos** y **NO** Facturas ni Clientes — al revés que el vendedor |
 | **9** | Como `vendedor1`, **escribir `/usuarios` en la barra de direcciones** | La interfaz **se abre** y muestra el aviso **«Su rol no tiene permiso para esta operacion»** y **cero filas** |
@@ -311,7 +307,7 @@ Abra `http://localhost:8099`.
 Los otros nueve se pueden cumplir con una interfaz que esconda botones. **Ese
 no.**
 
-```
+```text
 el menu no muestra «Usuarios»  ·  pero esto existe:
     http://localhost:8099/usuarios     <- escrito a mano
 ```
@@ -325,12 +321,6 @@ el menu no muestra «Usuarios»  ·  pero esto existe:
 > **Si mostrara los datos, el control estaba en el menú — y no era control de
 > acceso: era decoración.**
 
-### Y una advertencia práctica
-
-**Recargar con F5 cierra la sesión.** Es el costo de que el token no baje al
-navegador: vive en el circuito, y el F5 lo tumba. Está en
-[3_plan.md](3_plan.md) §4.1 con su razón.
-
 ---
 
 ## 11. Si algo falla
@@ -339,11 +329,9 @@ navegador: vive en el circuito, y el F5 lo tumba. Está en
 |---|---|
 | **Iniciar sesión responde 401 con las contraseñas de la tabla** | La base no se re-sembró. `docker compose down -v` y `up -d --build` |
 | **Todo responde 401, incluso con token** | Falta la palabra **`Bearer`** y el espacio antes del token |
-| **Todo responde 200, incluso sin token** | `app.UseAuthentication()` no está, o está **después** de `UseAuthorization()` |
-| **Un token vencido responde 200 durante cinco minutos** | Falta `ClockSkew = TimeSpan.Zero`. ASP.NET perdona 5 minutos de reloj por defecto |
-| **El 401 llega con el cuerpo vacío** | Falta el `OnChallenge`. Es lo que ASP.NET hace por defecto |
-| **Un rol sin permiso responde 200** | Falta `[ExigePermiso]` en ese controlador. Se revisan los 12 |
-| **Todo responde 403, incluso el administrador** | El nombre de la ruta del atributo no está en la tabla `ruta`. Se compara con `SELECT ruta FROM ruta;` |
-| **El menú no cambia al identificarse** | El `@rendermode` está en cada interfaz y no en `App.razor`: el layout se quedó estático y no ve el `EstadoSesion` del circuito |
-| **La API arranca y muere** | La clave `Jwt:Key` falta o tiene menos de 32 caracteres. El mensaje lo dice |
-| **La sesión se cae al recargar** | Es lo esperado. Ver §10 |
+| **Un token vencido responde 200** | Verificar que `leeway=0` esté activo en `api_python/autorizacion/dependencias.py` |
+| **El 401 llega sin formato uniforme** | Revisar el handler `manejar_401` en `api_python/main.py` |
+| **Un rol sin permiso responde 200** | Falta `Depends(exige_permiso("..."))` en el router correspondiente |
+| **Todo responde 403, incluso el administrador** | El nombre de la ruta en `exige_permiso` no coincide con `SELECT nombre FROM ruta;` |
+| **La API arranca y falla al instante** | La clave `Jwt__Key` falta o tiene menos de 32 caracteres en `api_python/config.py` / compose |
+| **La sesión se cierra al reiniciar el contenedor `front-python`** | Normal: `SESIONES` vive en memoria de Python por seguridad (no se persiste en disco ni `localStorage`) |

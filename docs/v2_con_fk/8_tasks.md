@@ -1,6 +1,6 @@
 # Tareas — Versión 2: las tablas CON clave foránea y lógica en la base
 
-> **Versión 2** — El orden de construcción y verificación paso a paso.
+> **Versión 2** — El orden de construcción y verificación paso a paso en Python.
 > Cada fase termina en un entregable **verificable y funcional**.
 > Requisitos: [2_spec.md](2_spec.md) · Técnica: [3_plan.md](3_plan.md) · Contratos: [6_contracts.md](6_contracts.md) · Validación final: [7_quickstart.md](7_quickstart.md).
 
@@ -15,101 +15,84 @@
   - `sp_anular_factura`
   - `crear_usuario_con_roles`, `actualizar_usuario_con_roles`, `consultar_usuario_con_roles`, `listar_usuarios_con_roles`, `eliminar_usuario_con_roles`
 - [x] Verificar el disparador `trg_actualizar_totales_y_stock` sobre `productosporfactura`.
-- [x] Agregar la clase de excepción de dominio `ConflictoExcepcion.cs` para mapear a HTTP 409 Conflict.
-- [x] Actualizar el endpoint de diagnóstico `GET /` para reportar `"version": "v2"`.
+- [x] Implementar `ConflictoExcepcion` en `api_python/excepciones.py` para mapear errores SQL `547` / `2627` / `2601` / `50000` a HTTP `409 Conflict`.
 
 ---
 
 ## Fase 1 — Entidades 1:N con Clave Foránea (`cliente` y `vendedor`)
-- [x] **Modelo y peticiones de `cliente`:**
-  - `Cliente.cs` (`id`, `credito`, `fkcodpersona`, `fkcodempresa` nullable).
-  - Peticiones segregadas: `ClienteCrear.cs` (todos obligatorios salvo empresa), `ClienteReemplazo.cs` (PUT con 422 si falta alguno), `ClienteActualizar.cs` (PATCH parcial).
-- [x] **Capa de datos y dominio de `cliente`:**
-  - `IRepositorioCliente.cs` y `RepositorioClienteSqlServer.cs` (captura SqlException 547 y lanza `ConflictoExcepcion`).
-  - `IServicioCliente.cs` y `ServicioCliente.cs`.
-  - `ClienteController.cs` (mapea `ConflictoExcepcion` a 409).
-- [x] **Modelo y peticiones de `vendedor`:**
-  - `Vendedor.cs` (`id`, `carnet`, `direccion`, `fkcodpersona`).
-  - Peticiones: `VendedorCrear.cs`, `VendedorReemplazo.cs`, `VendedorActualizar.cs`.
-- [x] **Capa de datos y dominio de `vendedor`:**
-  - `IRepositorioVendedor.cs` y `RepositorioVendedorSqlServer.cs` (captura SqlException 547 y lanza `ConflictoExcepcion`).
-  - `IServicioVendedor.cs` y `ServicioVendedor.cs`.
-  - `VendedorController.cs`.
+- [x] **Esquemas Pydantic de `cliente`:**
+  - `ClienteCrear`, `ClienteReemplazo`, `ClienteActualizar` en `api_python/peticiones/esquemas.py` (`credito`, `fkcodpersona`, `fkcodempresa` opcional).
+- [x] **Capa de datos, servicio y router de `cliente`:**
+  - `RepositorioCliente` en `api_python/repositorios/repositorio_v2.py` (`JOIN` con `persona` y `empresa`, captura error SQL `547` → `ConflictoExcepcion`).
+  - `ServicioCliente` en `api_python/servicios/servicio_v2.py` y rutas `/api/cliente` en `api_python/routers/router_v2.py`.
+- [x] **Esquemas, repositorio, servicio y router de `vendedor`:**
+  - `VendedorCrear`, `VendedorReemplazo`, `VendedorActualizar`.
+  - `RepositorioVendedor`, `ServicioVendedor` y rutas `/api/vendedor`.
 - [x] **Integridad referencial inversa:**
-  - Controlar borrado en tablas independientes (`persona`, `empresa`) lanzando 409 si tienen hijos asociados.
+  - Controlar borrado en tablas independientes (`persona`, `empresa`, `producto`) lanzando HTTP `409` si tienen registros hijos asociados.
 
 ---
 
 ## Fase 2 — Facturación Maestro-Detalle por Procedimientos y Disparador
-- [x] **Modelos de Factura:**
-  - `Factura.cs`, `FacturaDetalle.cs`, `ProductoDeFactura.cs`.
-  - `FacturaCrear.cs` e `ItemFacturaCrear.cs` (**sin** campos de subtotal, total ni precio unitario manual).
+- [x] **Esquemas de Factura:**
+  - `FacturaCrear` e `ItemFacturaCrear` en `api_python/peticiones/esquemas.py` (**sin** campos de subtotal, total ni precio unitario manual).
 - [x] **Repositorio exclusivo por Stored Procedures:**
-  - `IRepositorioFactura.cs` y `RepositorioFacturaSqlServer.cs`.
-  - Llamadas a `sp_listar_facturas_y_productosporfactura`, `sp_consultar_factura_y_productosporfactura`, `sp_insertar_factura_y_productosporfactura` (pasando JSON al TVP/parámetro) y `sp_anular_factura`.
-  - Ninguna sentencia `INSERT INTO factura` directa en C#.
-- [x] **Servicio y Controlador:**
-  - `IServicioFactura.cs`, `ServicioFactura.cs`, `FacturaController.cs`.
-  - Validaciones de negocio: regla de stock controlada por la base y traducida a 409 / 400.
+  - `RepositorioFactura` en `api_python/repositorios/repositorio_v2.py`.
+  - Ejecución directa de `sp_listar_facturas_y_productosporfactura`, `sp_consultar_factura_y_productosporfactura`, `sp_insertar_factura_y_productosporfactura` (pasando JSON de detalle) y `sp_anular_factura`.
+  - Ninguna sentencia `INSERT INTO factura` ni cálculo aritmético manual de totales en Python.
+- [x] **Servicio y Router:**
+  - `ServicioFactura` y endpoints `/api/factura` en `router_v2.py`.
+  - Regla de stock insuficiente controlada por la base de datos y traducida a `409` (`ConflictoExcepcion`).
   - Anulación mediante `DELETE /api/factura/{numero}` ejecutando `sp_anular_factura` (borrado lógico `estado = 'anulada'`).
 
 ---
 
 ## Fase 3 — Tablas Puente M:N (`rol_usuario` y `rutarol`)
 - [x] **Recurso `rol_usuario` (`/api/rol-usuario`):**
-  - Modelos y contratos: `RolUsuario.cs`, `RolUsuarioCrear.cs`.
-  - Repositorio y Servicio: `IRepositorioRolUsuario.cs`, `RepositorioRolUsuarioSqlServer.cs`, `ServicioRolUsuario.cs`.
-  - `RolUsuarioController.cs`:
-    - `GET /api/rol-usuario` (listar todas las asignaciones).
-    - `GET /api/rol-usuario/usuario/{email}` (roles de un usuario).
-    - `GET /api/rol-usuario/rol/{idrol}` (usuarios con dicho rol).
-    - `POST /api/rol-usuario` (409 si duplicado).
+  - Esquema `RolUsuarioCrear` en `api_python/peticiones/esquemas.py`.
+  - `RepositorioRolUsuario`, `ServicioRolUsuario` y rutas en `router_v2.py`:
+    - `GET /api/rol-usuario`, `GET /api/rol-usuario/usuario/{email}`, `GET /api/rol-usuario/rol/{idrol}`.
+    - `POST /api/rol-usuario` (`409` si duplicado o FK inexistente).
     - `DELETE /api/rol-usuario/{email}/{idrol}` (borrado por clave compuesta).
 - [x] **Recurso `rutarol` (`/api/rutarol`):**
-  - Modelos y contratos: `RutaRol.cs`, `RutaRolCrear.cs`.
-  - Repositorio y Servicio: `IRepositorioRutaRol.cs`, `RepositorioRutaRolSqlServer.cs`, `ServicioRutaRol.cs`.
-  - `RutaRolController.cs`:
+  - Esquema `RutaRolCrear`.
+  - `RepositorioRutaRol`, `ServicioRutaRol` y rutas `/api/rutarol`:
     - `GET /api/rutarol`, `GET /api/rutarol/ruta/{idruta}`, `GET /api/rutarol/rol/{idrol}`.
     - `POST /api/rutarol` y `DELETE /api/rutarol/{idruta}/{idrol}`.
 
 ---
 
-## Fase 4 — Recurso Compuesto Atómico (`api/usuario-con-roles`)
-- [x] **Modelos y DTOs:**
-  - `UsuarioConRoles.cs` (incluye lista de identificadores `roles: int[]`).
-  - `UsuarioConRolesCrear.cs` (validación `[MinLength(1)]` devolviendo 422 si la lista de roles está vacía).
-  - `UsuarioConRolesActualizar.cs` (contraseña opcional; si llega vacía, conserva la anterior).
+## Fase 4 — Recurso Compuesto Atómico (`/api/usuario-con-roles`)
+- [x] **Esquemas Pydantic:**
+  - `UsuarioConRolesCrear` (con lista `roles` de mínimo 1 rol → `422` si llega vacía) y `UsuarioConRolesActualizar` (`contrasena` opcional; si llega vacía, conserva la actual).
 - [x] **Capa de Datos con Procedimientos Almacenados:**
-  - `IRepositorioUsuarioConRoles.cs` y `RepositorioUsuarioConRolesSqlServer.cs`.
-  - Invoca los 5 SPs pasando la lista serializada en JSON para `OPENJSON`.
-- [x] **Servicio y Controlador:**
-  - `ServicioUsuarioConRoles.cs`: transforma la lista de enteros `[1, 2]` a JSON de objetos `[{"fkidrol": 1}, {"fkidrol": 2}]` antes de entregar al repositorio (regla de dominio).
-  - `UsuarioConRolesController.cs`: sobre estándar `{ "tabla": "usuario_con_roles", "total": N, "datos": [...] }`.
+  - `RepositorioUsuarioConRoles` en `api_python/repositorios/repositorio_v2.py`.
+  - Invoca los 5 SPs (`listar_usuarios_con_roles`, `consultar_usuario_con_roles`, `crear_usuario_con_roles` con `@p_roles_json`, `actualizar_usuario_con_roles` con `@p_roles`, `eliminar_usuario_con_roles`).
+- [x] **Servicio y Router:**
+  - `ServicioUsuarioConRoles`: transforma la lista `[1, 2]` en JSON `[{"fkidrol": 1}, {"fkidrol": 2}]` compatible con `OPENJSON` en SQL Server y hashea la contraseña con BCrypt costo 12 cuando se envía.
+  - Endpoints `/api/usuario-con-roles` en `router_v2.py` con envoltura estándar `{ "tabla": "usuario_con_roles", "total": N, "datos": [...] }`.
 
 ---
 
-## Fase 5 — Interfaz Gráfica Blazor Server
-- [x] **Servicios HTTP tipados en Front:**
-  - `ServicioCliente.cs`, `ServicioVendedor.cs`, `ServicioFactura.cs`, `ServicioRolUsuario.cs`, `ServicioRutaRol.cs`, `ServicioUsuarioConRoles.cs`.
+## Fase 5 — Interfaz Gráfica en Python (`front_python/`)
+- [x] **Cliente HTTP asíncrono centralizado (`front_python/servicios/cliente_api.py`):**
+  - Peticiones con `httpx.AsyncClient` hacia todos los endpoints de v2.
 - [x] **Vistas de Clientes y Vendedores con Desplegables:**
-  - `Clientes.razor`: Dropdowns dinámicos que muestran nombre y envían ID/código. Opción null para personas naturales.
-  - `Vendedores.razor`: Dropdown dinámico para persona.
+  - Selectores `<select>` poblados dinámicamente desde `api/persona` y `api/empresa` en `front_python/templates/crud_generico.html` (incluyendo opción vacía/nula en empresa para persona natural).
 - [x] **Módulo de Facturación:**
-  - `Facturas.razor`: Listado interactivo con detalle desplegable y botón de anular.
-  - `EmitirFactura.razor` / `FacturaNueva.razor`: Maestro-detalle en memoria. Agregar y quitar renglones dinámicamente antes de enviar a la API. Sin cálculos manuales de total.
-  - `FacturaDetalle.razor`: Ficha individual imprimible `/facturas/{numero}` con subtotales y estado.
+  - `facturas.html`: Listado de facturas con acceso al detalle y botón de anular.
+  - `emitir_factura.html`: Formulario Maestro-Detalle interactivo que envía el arreglo `items` a la API sin calcular subtotales en el navegador.
+  - `factura_detalle.html`: Ficha individual `/facturas/{numero}` con detalle de productos, subtotales calculados por la BD y estado.
 - [x] **Gestión de Permisos y Roles:**
-  - `UsuariosYRoles.razor` / `UsuarioConRoles.razor`: Lista con checkboxes de roles disponibles.
-  - `RolesPorUsuario.razor`: Tabla puente directa.
-  - `PermisosPorRol.razor` / `Permisos.razor`: Tabla puente de rutas con advertencia pedagógica de v3.
+  - `usuarios_y_roles.html`: Alta y edición atómica de usuario con checkboxes de roles.
+  - `roles_por_usuario.html`: Gestión de tabla puente `rol_usuario`.
+  - `permisos_por_rol.html`: Gestión de tabla puente `rutarol`.
 - [x] **Resiliencia y Concurrencia:**
-  - Carga paralela con `Task.WhenAll` para catálogos foráneos, eliminando cuellos de botella de 50 segundos.
+  - Carga paralela con `asyncio.gather(...)` en `front_python/main.py` para poblar múltiples catálogos foráneos simultáneamente.
 
 ---
 
 ## Fase 6 — Verificación, Regresión y Cierre
-- [x] **Smoke Test de v2:** Ejecución de las pruebas de [7_quickstart.md](7_quickstart.md) con curl.
-- [x] **Prueba de Regresión de v1:** Verificar que los 6 recursos de v1 sigan funcionando al 100%.
-- [x] **Prueba Unitaria / Mock en Memoria:** Ejecutar `api_facturas/pruebas/Programa.cs` con `RepositorioClienteFalso`.
-- [x] **Documentación Separada y Limpia:** Estructurar `docs/v1_sin_fk/` y `docs/v2_con_fk/` con índices explicativos.
-
+- [x] **Pruebas unitarias con mocks en memoria:** Ejecutar `api_python/pruebas/test_capas.py` (`TestCapasServicios` sin dependencia de SQL Server).
+- [x] **Regresión de v1:** Verificar que los 6 recursos de v1 continúen operativos junto a los 6 recursos nuevos de v2.
+- [x] **Documentación separada y coherente:** Actualizar `docs/v1_sin_fk/` y `docs/v2_con_fk/` con la arquitectura 100% Python.

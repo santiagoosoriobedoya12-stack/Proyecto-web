@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Iniciar Sesión — Versión 3{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-primary text-white text-center py-3">
+                <h4 class="mb-0">Control de Acceso (Versión 3)</h4>
+                <small>Autenticación JWT Bearer + BCrypt + RBAC en Python</small>
+            </div>
+            <div class="card-body p-4">
+                {% if sesion %}
+                    <div class="alert alert-success text-center">
+                        <h5>¡Ya has iniciado sesión!</h5>
+                        <p class="mb-1">Conectado como: <strong>{{ sesion.email }}</strong></p>
+                        <p class="text-muted small">Roles: {{ sesion.roles | join(', ') }}</p>
+                        <div class="mt-3 d-flex justify-content-center gap-2">
+                            <a href="/" class="btn btn-outline-primary">Ir al inicio</a>
+                            <form method="post" action="/cerrar-sesion" class="m-0">
+                                <button type="submit" class="btn btn-danger">Cerrar sesión</button>
+                            </form>
+                        </div>
+                    </div>
+                {% else %}
+                    {% if error %}
+                        <div class="alert alert-danger">
+                            <strong>Error de autenticación:</strong> {{ error }}
+                        </div>
+                    {% endif %}
+
+                    <form method="post" action="/sesion">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Correo Electrónico:</label>
+                            <input type="email" name="email" class="form-control" placeholder="ej: admin@correo.com" required autofocus />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Contraseña:</label>
+                            <input type="password" name="contrasena" class="form-control" placeholder="Tu contraseña" required />
+                        </div>
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">Ingresar al Sistema</button>
+                        </div>
+                    </form>
+
+                    <hr class="my-4" />
+                    <div class="bg-light p-3 rounded border">
+                        <h6 class="text-secondary mb-2">Credenciales de Prueba (Quickstart):</h6>
+                        <ul class="list-unstyled small mb-0">
+                            <li><strong>Admin:</strong> <code>admin@correo.com</code> / <code>admin123</code> <span class="badge bg-success">15 rutas</span></li>
+                            <li><strong>Vendedor:</strong> <code>vendedor1@correo.com</code> / <code>vendedor123</code> <span class="badge bg-warning text-dark">Facturas, Clientes</span></li>
+                            <li><strong>Cliente:</strong> <code>cliente1@correo.com</code> / <code>cliente123</code> <span class="badge bg-info text-dark">Productos</span></li>
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

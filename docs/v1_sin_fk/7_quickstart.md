@@ -1,4 +1,4 @@
-# Quickstart — Versión 1: arranque y smoke test (API y interfaz gráfica)
+# Quickstart — Versión 1: arranque y smoke test (API e interfaz gráfica en Python)
 
 > **Versión 1** · Validación rápida de la versión ya construida. Si aún no
 > hay nada construido, empiece por [8_tasks.md](8_tasks.md).
@@ -11,60 +11,48 @@
 docker compose up -d --build
 ```
 
-La primera vez tarda: descarga imágenes, restaura paquetes y la BD se siembra sola. Al final: base de datos (healthy) y `api-facturas` arriba. La primera compilación de `dotnet watch` toma ~30-60 segundos.
+La primera vez descarga imágenes, instala `requirements.txt` en Python (`api_python` y `front_python`) y `sqlserver-init` siembra `bdfacturas.sql` automáticamente.
 
-## 2. Smoke test (equivale a los 10 criterios de 2_spec.md)
+## 2. Smoke test (equivale a los criterios de `2_spec.md`)
+
+> Nota: En v3 los endpoints CRUD requieren token Bearer en la cabecera `Authorization`. En este repositorio con v3 integrada, inicia sesión primero en `POST /api/sesion` (ver [v3 Quickstart](../v3_seguridad_rbac/7_quickstart.md)).
 
 ```powershell
-# 1. Diagnóstico (y de paso: edite un .cs, guarde — recompila solo)
-curl.exe http://localhost:8032/
-# … y la documentación interactiva en el navegador: http://localhost:8032/swagger
+# 1. Diagnóstico (al editar un .py con uvicorn --reload, recarga al instante)
+curl.exe http://localhost:8035/
+# … y documentación interactiva Swagger en: http://localhost:8035/swagger
 
-# 2. Listar: 8 productos; con limite=3, exactamente 3
-curl.exe http://localhost:8032/api/producto
-curl.exe "http://localhost:8032/api/producto?limite=3"
+# 2. Listar productos (con ?limite=3)
+curl.exe http://localhost:8035/api/producto
+curl.exe "http://localhost:8035/api/producto?limite=3"
 
-# 3. Obtener: 200 con la Laptop; 404 con PR999
-curl.exe http://localhost:8032/api/producto/PR001
-curl.exe -i http://localhost:8032/api/producto/PR999
+# 3. Obtener por código (200 si existe, 404 si no)
+curl.exe http://localhost:8035/api/producto/PR001
+curl.exe -i http://localhost:8035/api/producto/PR999
 
-# 4. El ciclo de los 5 verbos
-curl.exe -X POST http://localhost:8032/api/producto -H "Content-Type: application/json" -d "{\"codigo\":\"PR009\",\"nombre\":\"Webcam\",\"stock\":10,\"valorunitario\":350000}"
-curl.exe -X PUT http://localhost:8032/api/producto/PR009 -H "Content-Type: application/json" -d "{\"nombre\":\"Webcam HD\",\"stock\":12,\"valorunitario\":380000}"
-curl.exe -X PATCH http://localhost:8032/api/producto/PR009 -H "Content-Type: application/json" -d "{\"stock\":99}"
-curl.exe http://localhost:8032/api/producto/PR009
-curl.exe -X DELETE http://localhost:8032/api/producto/PR009
-curl.exe -i -X DELETE http://localhost:8032/api/producto/PR009        # → 404
+# 4. Ciclo completo de los 5 verbos
+curl.exe -X POST http://localhost:8035/api/producto -H "Content-Type: application/json" -d "{\"codigo\":\"PR009\",\"nombre\":\"Webcam\",\"stock\":10,\"valorunitario\":350000}"
+curl.exe -X PUT http://localhost:8035/api/producto/PR009 -H "Content-Type: application/json" -d "{\"nombre\":\"Webcam HD\",\"stock\":12,\"valorunitario\":380000}"
+curl.exe -X PATCH http://localhost:8035/api/producto/PR009 -H "Content-Type: application/json" -d "{\"stock\":99}"
+curl.exe http://localhost:8035/api/producto/PR009
+curl.exe -X DELETE http://localhost:8035/api/producto/PR009
+curl.exe -i -X DELETE http://localhost:8035/api/producto/PR009        # → 404
 
-# 4b. El contraste didáctico: MISMO body, dos verbos
-curl.exe -i -X PUT http://localhost:8032/api/producto/PR001 -H "Content-Type: application/json" -d "{\"stock\":99}"     # → 422
-curl.exe -i -X PATCH http://localhost:8032/api/producto/PR001 -H "Content-Type: application/json" -d "{\"stock\":17}"   # → 200
+# 5. Validación Pydantic (HTTP 422 antes de tocar la BD)
+curl.exe -X POST http://localhost:8035/api/producto -H "Content-Type: application/json" -d "{\"codigo\":\"PRX\",\"nombre\":\"X\",\"stock\":-5,\"valorunitario\":10}"
 
-# 5. La frontera de la petición — nunca llega a la BD
-curl.exe -X POST http://localhost:8032/api/producto -H "Content-Type: application/json" -d "{\"codigo\":\"PRX\",\"nombre\":\"X\",\"stock\":-5,\"valorunitario\":10}"      # → 422 con errores[]
-curl.exe -i -X POST http://localhost:8032/api/producto -H "Content-Type: application/json" -d "{\"codigo\":\"PRY\",\"nombre\":\"Y\",\"stock\":7.5,\"valorunitario\":10}"  # → 422 (el tipo es regla)
-
-# 6. La prueba de capas (sin SQL Server)
-docker compose exec api-facturas dotnet run --project pruebas
-# → CRITERIO 6 OK: el servicio funciona con el repositorio falso, sin SQL Server
+# 6. Prueba unitaria de capas sin SQL Server
+docker compose exec api-facturas python pruebas/test_capas.py
 ```
 
-## 2bis. La interfaz gráfica — criterios 7 a 10
+## 2bis. La interfaz gráfica (`front_python/`)
 
 | | Qué hacer | Qué tiene que pasar |
 |---|---|---|
-| **7** | Abrir `http://localhost:8096/productos` | Lista los **8 productos**, con código, nombre, stock y valor |
-| **8** | Crear uno con un código que **ya existe** | El mensaje sale **en la interfaz gráfica**, y **lo que escribió NO se borra** |
-| **9** | Editar uno y usar los **dos** botones de guardar | «Guardar la ficha completa» (`PUT`) y «Guardar solo lo que cambié» (`PATCH`) hacen cosas distintas. La interfaz gráfica **no dice `PUT` ni `422`** |
-| **10** | Apagar la API y recargar | Ver abajo |
-
-### El criterio 10 (prueba de resiliencia del frontend)
-
-```powershell
-docker compose stop api-facturas
-```
-
-Recargue `http://localhost:8096/productos`: debe mostrar el menú, un aviso de que no se pudo conectar, y ninguna fila en la tabla.
+| **7** | Abrir `http://localhost:8099/productos` | Lista los productos existentes con código, nombre, stock y valor |
+| **8** | Crear uno con código duplicado | Muestra alerta HTTP 409 en la interfaz |
+| **9** | Editar con PUT vs PATCH | «Guardar reemplazo (PUT)» y «Actualizar parcial (PATCH)» ejecutan cada endpoint correctamente |
+| **10** | Apagar la API (`docker compose stop api-facturas`) | Al recargar `/productos`, el menú sigue visible, muestra alerta de conexión y 0 filas sin caerse |
 
 Para volver a levantar la API:
 ```powershell
@@ -75,7 +63,7 @@ docker compose start api-facturas
 
 | Síntoma | Causa probable |
 |---|---|
-| `curl` no conecta al 8032 | La compilación inicial aún no termina (`docker compose logs api-facturas`) |
-| La API responde 500 en todo | La BD no se sembró — reset: `docker compose down -v && docker compose up -d` |
+| `curl` no conecta al 8035 | El contenedor aún está instalando o iniciando (`docker compose logs api-facturas`) |
+| La API responde 500 en todo | La BD no se sembró — reset: `docker compose down -v && docker compose up -d --build` |
 | Motor nunca queda healthy | Puerto 11463 ocupado o Docker sin espacio |
-| Guardar un `.cs` no recarga | Reintentar o reiniciar con `docker compose restart api-facturas` |
+| Guardar un `.py` no recarga | Reiniciar con `docker compose restart api-facturas` |

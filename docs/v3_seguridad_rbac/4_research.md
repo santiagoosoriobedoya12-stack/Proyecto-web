@@ -34,11 +34,7 @@ los dos usuarios de carlos.castro comparten la contrasena, y sus hash no se pare
 Sin *salt*, ver dos hashes iguales en la tabla delataría que esas dos personas
 usan la misma contraseña.
 
-> **¿Y Argon2, que ganó la competencia de 2015?** Es mejor —además de lenta,
-> **gasta memoria**, y la memoria es lo que una GPU no tiene de sobra—. No se
-> usa aquí porque `BCrypt.Net-Next` **ya estaba en el proyecto** desde la v1,
-> funcionando. Cambiar de función de hash obligaría a que todos vuelvan a
-> poner su contraseña. Queda escrito como la mejora que es.
+> **¿Y Argon2?** Es técnicamente más resistente en memoria RAM, pero se mantuvo **BCrypt (costo 12)** para preservar compatibilidad exacta con los hashes `$2a$12$` ya sembrados en `db/bdfacturas.sql` y la librería estándar `bcrypt` en Python.
 
 ## D2 — El costo 12: ¿por qué ese número?
 
@@ -97,61 +93,40 @@ olvidadiza: es alguien a quien se le retiró el acceso por una razón.
 > **Lo que cuesta:** una consulta a la base por operación. Es el precio, y es
 > barato: el procedimiento son tres `JOIN` sobre tablas con índice.
 
-## D5 — El permiso: ¿el `JOIN` en C#, o el procedimiento?
+## D5 — El permiso: ¿duplicar el `JOIN` en Python, o invocar el procedimiento?
 
 **El procedimiento**, `verificar_acceso_ruta`, que **ya existía en la base
-desde el primer día** sin que nadie lo llamara.
+desde el primer día**.
 
 | Opción | Argumento |
 |---|---|
-| **El `JOIN` en C#** | Se lee sin saber plpgsql, y está en el mismo lenguaje que el resto |
+| **El `JOIN` en Python** | Se lee directo en el repositorio |
 | **El procedimiento** ✅ | **La regla vive en un solo sitio** |
 
-**Lo que decide:** repetir el `JOIN` en C# deja la regla del acceso en dos
-lugares, y el día que cambie, cambia en uno.
+**Lo que decide:** repetir la decisión en código Python dejaría la lógica en dos
+lugares. Para el listado visual del menú (`GET /api/permisos/mios`), `RepositorioAcceso` sí consulta las rutas del usuario, mientras que la **decisión real de autorización** la toma siempre `verificar_acceso_ruta`.
 
-> **Y hay un `JOIN` de permisos escrito en C#, en `RutasPermitidasAsync`.**
-> Conviene decir por qué no contradice esto: **no decide nada**. Es una lista
-> para dibujar un menú. La **decisión** —si una operación entra o no— la toma
-> el procedimiento, y solo él.
+## D6 — El 403: ¿una dependencia `Depends`, o código repetido en cada función?
 
-## D6 — El 403: ¿un filtro, o una línea en cada método?
-
-**Un filtro**, `[ExigePermiso]`.
+**Una dependencia declarativa**, `Depends(exige_permiso("..."))` en FastAPI.
 
 | Opción | Argumento |
 |---|---|
-| **Una línea al principio de cada método** | Se ve dónde está. Nada de «magia» |
-| **Un atributo** ✅ | **No se puede olvidar** |
+| **Copiar verificación en cada función** | Propenso a omisiones |
+| **Dependencia FastAPI** ✅ | **Declarativa, reutilizable y visible en el contrato del router** |
 
-**Lo que decide:** con la línea a mano, el día que alguien escriba un endpoint
-nuevo y se le olvide, **ese endpoint queda abierto** — y nadie lo nota, porque
-funciona. El atributo está en la declaración del controlador, a la vista de
-cualquiera que lo abra.
+## D7 — `leeway=0` al decodificar el JWT: ¿por qué?
 
-## D7 — `ClockSkew`: ¿por qué tocarlo?
+Al verificar expiración en `pyjwt` (`jwt.decode(..., leeway=0)`), exigir tolerancia cero asegura que un token vencido sea rechazado inmediatamente con `401`, facilitando probar la caducidad exacta en sustentación sin márgenes artificiales.
 
-Por defecto ASP.NET perdona **cinco minutos** de desajuste de reloj al validar
-que un token no haya vencido. Es razonable en producción —los relojes de dos
-servidores no coinciden al segundo— y **arruina la demostración**: un token
-vencido responde **200** durante cinco minutos, y el estudiante concluye que su
-código está mal.
+## D8 — El token en el navegador: ¿`localStorage` o sesión en el servidor `front_python`?
 
-**Se pone en cero**, y queda escrito aquí para que la decisión se vea.
-
-## D8 — El token en el navegador: ¿`localStorage` o el circuito?
-
-**El circuito.** En Blazor Server el token puede quedarse **en memoria del
-servidor** y no bajar nunca al navegador.
+**Sesión en servidor Python + cookie `HttpOnly`.** En `front_python/servicios/cliente_api.py`, el token JWT permanece en memoria del servidor (`SESIONES`) asociado al `factucorp_sid`.
 
 | Opción | Argumento |
 |---|---|
-| **`localStorage`** | Sobrevive al F5. Es lo que se hace en React, Angular, Blazor WebAssembly |
-| **El circuito** ✅ | **El token no baja al navegador.** Ningún script de la página lo puede leer |
-
-> **Lo que se pierde:** recargar con F5 cierra la sesión. Para el curso es el
-> cambio correcto, y es una ventaja real de Blazor Server que vale la pena
-> nombrar — en un front que corre en el navegador **no hay** esta opción.
+| **`localStorage`** | Expuesto a lectura por JavaScript (XSS) |
+| **Sesión en servidor (`HttpOnly`)** ✅ | **El JWT nunca baja al navegador.** |
 
 ## D9 — Lo que NO se investigó, y por qué
 

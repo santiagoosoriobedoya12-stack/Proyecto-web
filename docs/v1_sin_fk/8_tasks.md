@@ -8,48 +8,42 @@
 ---
 
 ## Fase 0 — Base de datos y esqueleto
-- [ ] Copiar a `db/` el archivo **provisto** con esta versión: `bdfacturas.sql` (la BD completa).
-- [ ] Crear el `docker-compose.yml` con el servicio de base de datos (puerto 11463 y script montado para auto-siembra).
-- [ ] Crear `api_facturas/` con subcarpetas `Modelos/`, `Peticiones/`, `Controllers/`, `Servicios/`, `Repositorios/`, `Excepciones/` y `pruebas/`.
+- [x] Copiar a `db/` el archivo **provisto** con esta versión: `bdfacturas.sql` (la BD completa) y `init.sh`.
+- [x] Configurar `docker-compose.yml` con los servicios `sqlserver` (puerto 11463) y `sqlserver-init` para auto-siembra idempotente.
+- [x] Crear `api_python/` con `peticiones/`, `routers/`, `servicios/`, `repositorios/`, `autorizacion/` y `pruebas/`.
 
-**Verificar:** `docker compose ps` muestra el servicio healthy y las 12 tablas con `SELECT count(*) FROM producto` dando 8.
+**Verificar:** `docker compose ps` muestra `sqlserver` healthy y `SELECT count(*) FROM producto` devuelve 8.
 
-## Fase 1 — El proyecto .NET y el modelo Producto (la clase entidad)
-- [ ] `ApiFacturas.csproj`: proyecto Web de .NET 10, paquete `Microsoft.Data.SqlClient`, y exclusión de `pruebas/**`.
-- [ ] `appsettings.json` con la cadena de conexión.
-- [ ] `Modelos/Producto.cs`: la clase entidad con las 4 propiedades tipadas (`Codigo`, `Nombre`, `Stock`, `Valorunitario`).
+## Fase 1 — El proyecto FastAPI y la configuración base
+- [x] `api_python/requirements.txt` con `fastapi`, `uvicorn`, `pymssql` y `pydantic[email]`.
+- [x] `api_python/config.py` y `api_python/database.py` para lectura de variables de entorno, conexión a SQL Server y normalización de claves minúsculas.
 
-## Fase 2 — Las peticiones por verbo (la frontera de entrada) y la excepción
-- [ ] `Peticiones/ProductoCrear.cs` (POST: todo obligatorio, con código).
-- [ ] `Peticiones/ProductoReemplazo.cs` (PUT: todo obligatorio, sin código).
-- [ ] `Peticiones/ProductoActualizar.cs` (PATCH: todo opcional).
-- [ ] `Excepciones/NoEncontradoExcepcion.cs`: excepción de negocio para HTTP 404.
+## Fase 2 — Las peticiones por verbo (frontera de entrada) y excepciones
+- [x] `api_python/peticiones/esquemas.py`: esquemas Pydantic segregados por verbo (`*Crear`, `*Reemplazo`, `*Actualizar`) para `producto`, `empresa`, `persona`, `rol`, `ruta` y `usuario`.
+- [x] `api_python/excepciones.py`: excepciones de dominio (`NoEncontradoExcepcion`, `ValidacionNegocioExcepcion`, `ConflictoExcepcion`).
 
-## Fase 3 — Contratos (interfaces) y repositorio
-- [ ] `Repositorios/IRepositorioProducto.cs`: interface con los 5 métodos async.
-- [ ] `Servicios/IServicioProducto.cs`: interface del servicio.
-- [ ] `Repositorios/RepositorioProductoSqlServer.cs`: Dapper con consultas parametrizadas.
+## Fase 3 — Repositorios de datos (PyMSSQL)
+- [x] `api_python/repositorios/repositorio_v1.py`: `RepositorioTablaBase` y repositorios concretos (`RepositorioProducto`, `RepositorioEmpresa`, `RepositorioPersona`, `RepositorioRol`, `RepositorioRuta`, `RepositorioUsuario`) usando SQL parametrizado con `%s`.
 
-## Fase 4 — Servicio (y la prueba de capas)
-- [ ] `Servicios/ServicioProducto.cs`: valida reglas de negocio y traduce a excepciones de dominio.
-- [ ] `pruebas/PruebaCapas.csproj` y `pruebas/Programa.cs`: servicio con repositorio falso en memoria (Criterio 6).
+## Fase 4 — Servicios de dominio (y prueba de capas en memoria)
+- [x] `api_python/servicios/servicio_v1.py`: `ServicioProducto`, `ServicioEmpresa`, `ServicioPersona`, `ServicioRol`, `ServicioRuta` y `ServicioUsuario` (con hash BCrypt costo 12 al guardar usuario).
+- [x] `api_python/pruebas/test_capas.py`: pruebas unitarias con `unittest` usando repositorios falsos en memoria (sin SQL Server).
 
-## Fase 5 — Controller y Program.cs
-- [ ] `Controllers/ProductoController.cs`: atributos de verbo, try/catch y respuestas 200/204/400/404/500.
-- [ ] `Program.cs`: ensamblador DI, 422 personalizado con lista de errores, Swagger y `GET /`.
+## Fase 5 — Routers y ensamblaje en `main.py`
+- [x] `api_python/routers/router_v1.py`: endpoints CRUD completos de los 6 recursos (`200`, `201`, `400`, `404`, `409`, `422`, `500`).
+- [x] `api_python/main.py`: aplicación FastAPI, handlers globales de excepción, documentación en `/swagger` y diagnóstico `GET /`.
 
-## Fase 6 — La interfaz gráfica (Blazor Server)
-- [ ] Proyecto `front_blazor/` en puerto 8096 sin paquetes de base de datos.
-- [ ] Modelo `Producto` propio del front.
-- [ ] `ServicioProducto` vía `HttpClient`.
-- [ ] Vistas y componentes (`Productos.razor`, layout, Bootstrap local en `wwwroot/lib/bootstrap/` y `app.css`).
+## Fase 6 — La interfaz gráfica (FastAPI + Jinja2)
+- [x] Proyecto `front_python/` expuesto en puerto `8099` (`8096` interno) sin `pymssql` ni acceso directo a SQL Server.
+- [x] `front_python/servicios/cliente_api.py`: cliente HTTP asíncrono centralizado con `httpx`.
+- [x] `front_python/templates/base.html` y `crud_generico.html` + Bootstrap local en `front_python/static/css/bootstrap.min.css` y `app.css`.
 
 ## Fase 7 — Prueba de resiliencia
-- [ ] Detener `api-facturas` y validar que el frontend sigue en pie informando error de conexión sin filas.
+- [x] Detener `api-facturas` y validar que el frontend sigue respondiendo en el navegador mostrando alerta de error de conexión sin romperse.
 
 ## Fase 8 — Docker: un solo comando
-- [ ] Dockerfiles con `dotnet watch` y orquestación unificada en `docker-compose.yml`.
+- [x] Dockerfiles de `api_python` y `front_python` con `uvicorn` orquestados en `docker-compose.yml`.
 
 ## Fase 9 — Cierre de la versión
-- [ ] Smoke test completo de todos los criterios.
-- [ ] Commit y tag `v1`.
+- [x] Verificación funcional de todos los criterios de v1.
+- [x] Documentación y guía de sustentación actualizadas.

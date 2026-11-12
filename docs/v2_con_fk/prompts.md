@@ -1,17 +1,16 @@
-# Bitácora de Prompts — Versión 2: Las 6 Tablas Con Clave Foránea
+# Bitácora de Prompts — Versión 2: Las 6 Tablas Con Clave Foránea (Python)
 
-> Este documento recopila los prompts de ingeniería de software asistida por IA utilizados para generar la integridad referencial, el manejo de excepciones HTTP 409 Conflict, los procedimientos almacenados, el disparador contable y los componentes Blazor con desplegables dinámicos.
+> Este documento recopila los prompts de ingeniería de software asistida por IA utilizados para generar en **Python (FastAPI + PyMSSQL + Jinja2)** la integridad referencial, el manejo de `ConflictoExcepcion` (`HTTP 409`), la integración con procedimientos almacenados, `OPENJSON` y las vistas web con desplegables dinámicos.
 
 ---
 
 ## 1. Prompt Arquitectónico Base (Integridad Referencial y 409 Conflict)
 ```text
-Actúa como un arquitecto de software senior en C# y SQL Server.
-Implementa el manejo de claves foráneas y errores relacionales en ASP.NET Core:
-1. Crea la excepción de dominio ConflictoExcepcion.cs que mapee al código HTTP 409 Conflict.
-2. En los repositorios Dapper, captura SqlException con número 547 (foreign_key_violation) y 2627/2601 (unique_violation) y lánzala como ConflictoExcepcion.
-3. En los controladores, traduce ConflictoExcepcion a HTTP 409 con el detalle del conflicto en JSON.
-4. En los borrados de tablas padre (persona, empresa, rol, usuario), protege contra eliminación huérfana retornando 409 si tienen hijos asociados.
+Actúa como un arquitecto de software senior en Python y SQL Server.
+Implementa el manejo de claves foráneas y errores relacionales en api_python/:
+1. Agrega la excepción de dominio ConflictoExcepcion en api_python/excepciones.py y mapea su handler global en main.py a HTTP 409 Conflict.
+2. En api_python/database.py implementa extraer_codigo_sql() para detectar códigos 547 (violación FK), 2627/2601 (unicidad duplicada) y 50000+ (RAISERROR/THROW de negocio) desde PyMSSQL y elevarlos como ConflictoExcepcion.
+3. Protege las eliminaciones de tablas padre (persona, empresa, producto, rol, usuario) retornando 409 si existen registros dependientes.
 ```
 
 ---
@@ -20,68 +19,60 @@ Implementa el manejo de claves foráneas y errores relacionales en ASP.NET Core:
 
 ### Tabla 7: `cliente` (FK a `persona` y `empresa`)
 ```text
-Genera el corte vertical completo para 'cliente':
-1. Modelo Cliente.cs (id IDENTITY, credito decimal, fkcodpersona NOT NULL, fkcodempresa NULLABLE).
-2. Peticiones: ClienteCrear, ClienteReemplazo, ClienteActualizar.
-3. Repositorio Dapper capturando error 547 si la persona o la empresa no existen (409).
-4. ServicioCliente y ClienteController con rutas /api/cliente.
-5. Vista Blazor Clientes.razor con menús desplegables (<select>) alimentados desde la API, mostrando nombres legibles y enviando códigos, permitiendo 'Ninguna' para persona natural.
+Genera el corte vertical en Python para 'cliente':
+1. Esquemas ClienteCrear, ClienteReemplazo, ClienteActualizar en api_python/peticiones/esquemas.py (credito, fkcodpersona obligatoria, fkcodempresa nullable/opcional).
+2. RepositorioCliente en repositorio_v2.py con JOIN a persona y empresa para devolver nombres descriptivos y traducir error 547 a 409.
+3. ServicioCliente en servicio_v2.py y endpoints /api/cliente en router_v2.py.
+4. En front_python/main.py carga personas y empresas en paralelo con asyncio.gather() y muéstralas en <select> dentro de crud_generico.html permitiendo 'Ninguna' -> null para persona natural.
 ```
 
 ### Tabla 8: `vendedor` (FK a `persona`)
 ```text
-Genera el corte vertical completo para 'vendedor':
-1. Modelo Vendedor.cs (id IDENTITY, carnet, direccion, fkcodpersona NOT NULL).
-2. Peticiones segregadas para POST, PUT y PATCH.
-3. Repositorio Dapper con captura de 547 -> 409.
-4. ServicioVendedor y VendedorController.
-5. Vista Blazor Vendedores.razor con selector dinámico de persona traído de la API.
+Genera el corte vertical en Python para 'vendedor':
+1. Esquemas VendedorCrear, VendedorReemplazo, VendedorActualizar en esquemas.py (carnet, direccion, fkcodpersona).
+2. RepositorioVendedor, ServicioVendedor y rutas /api/vendedor.
+3. Vista /vendedores en front_python con selector dinámico de persona.
 ```
 
 ### Tablas 9 y 10: `factura` y `productosporfactura` (Maestro-Detalle con SPs y Trigger)
 ```text
-Genera el módulo de facturación operado 100% mediante Stored Procedures y Triggers:
-1. Modelos: Factura.cs (con lista de productos), FacturaDetalle.cs, ProductoDeFactura.cs.
-2. Peticiones: FacturaCrear e ItemFacturaCrear. REGLA ESTRICTA: El cliente NO envía totales, subtotales ni precio unitario.
-3. RepositorioFacturaSqlServer que invoque exclusivamente:
+Genera el módulo de facturación operado 100% mediante Stored Procedures y Trigger:
+1. Esquemas FacturaCrear e ItemFacturaCrear en api_python/peticiones/esquemas.py. REGLA ESTRICTA: No recibir subtotal, total ni precio unitario desde el cliente.
+2. RepositorioFactura en repositorio_v2.py invocando exclusivamente:
    - sp_listar_facturas_y_productosporfactura
    - sp_consultar_factura_y_productosporfactura
-   - sp_insertar_factura_y_productosporfactura (pasando JSON al SP)
-   - sp_anular_factura (para anulación lógica estado = 'anulada' y retorno de stock)
-4. El endpoint DELETE /api/factura/{numero} realiza anulación lógica (nunca borrado físico de la fila).
-5. Vista Blazor EmitirFactura.razor: Maestro-detalle interactivo en memoria (agregar ítems, validar stock, eliminar renglones, emitir) y vista Facturas.razor con detalle desplegable y anulación.
+   - sp_insertar_factura_y_productosporfactura (pasando JSON de detalle al SP)
+   - sp_anular_factura (anulación lógica estado = 'anulada' devolviendo stock)
+3. DELETE /api/factura/{numero} realiza anulación lógica (nunca borrado físico).
+4. Plantillas facturas.html, emitir_factura.html y factura_detalle.html en front_python/templates/ conectadas por httpx.
 ```
 
 ### Tabla 11: `rol_usuario` (Tabla puente M:N)
 ```text
 Genera el corte vertical para la tabla puente 'rol_usuario':
-1. Modelo RolUsuario.cs (fkemail, fkidrol) con clave primaria compuesta.
-2. Petición RolUsuarioCrear.cs.
-3. RolUsuarioController en /api/rol-usuario:
-   - GET /api/rol-usuario (todos)
+1. Esquema RolUsuarioCrear en esquemas.py (fkemail, fkidrol). Sin PUT ni PATCH.
+2. Endpoints en router_v2.py bajo /api/rol-usuario:
+   - GET /api/rol-usuario
    - GET /api/rol-usuario/usuario/{email}
    - GET /api/rol-usuario/rol/{idrol}
    - POST /api/rol-usuario (409 si duplicado)
-   - DELETE /api/rol-usuario/{email}/{idrol} (eliminación por clave compuesta, sin PUT ni PATCH)
-4. Vista Blazor RolesPorUsuario.razor.
+   - DELETE /api/rol-usuario/{email}/{idrol}
+3. Vista roles_por_usuario.html en front_python/templates/.
 ```
 
 ### Tabla 12: `rutarol` (Tabla puente M:N)
 ```text
 Genera el corte vertical para la tabla puente 'rutarol':
-1. Modelo RutaRol.cs (fkidruta, fkidrol) con clave compuesta.
-2. Petición RutaRolCrear.cs.
-3. RutaRolController en /api/rutarol con endpoints de asociación, listado por extremos y desvinculación.
-4. Vista Blazor PermisosPorRol.razor con asignación interactiva y nota didáctica de v3.
+1. Esquema RutaRolCrear (fkidruta, fkidrol).
+2. Endpoints /api/rutarol con listado general, filtrado por extremo, asignación y borrado compuesto.
+3. Vista permisos_por_rol.html en front_python/templates/.
 ```
 
-### Recurso Especial: `usuario-con-roles` (Transacción con 5 Stored Procedures)
+### Recurso Especial: `usuario-con-roles` (5 Stored Procedures + OPENJSON)
 ```text
-Genera el recurso compuesto 'usuario-con-roles':
-1. Modelo UsuarioConRoles.cs y DTO UsuarioConRolesCrear.cs con [MinLength(1)] para exigir al menos un rol (422 si vacío).
-2. DTO UsuarioConRolesActualizar.cs donde la contraseña vacía conserva la anterior.
-3. Repositorio que ejecuta los 5 SPs: crear_usuario_con_roles, actualizar_usuario_con_roles, consultar_usuario_con_roles, listar_usuarios_con_roles, eliminar_usuario_con_roles.
-4. Servicio que mapea la lista de int a JSON de objetos [{"fkidrol": 1}] para OPENJSON.
-5. Vista Blazor UsuariosYRoles.razor con casillas de verificación (checkboxes) para selección múltiple de roles.
+Genera el recurso compuesto 'usuario-con-roles' en Python:
+1. Esquemas UsuarioConRolesCrear (min_length=1 en lista roles -> 422 si vacía) y UsuarioConRolesActualizar (contrasena opcional).
+2. RepositorioUsuarioConRoles invocando listar_usuarios_con_roles, consultar_usuario_con_roles, crear_usuario_con_roles (@p_roles_json), actualizar_usuario_con_roles (@p_roles) y eliminar_usuario_con_roles.
+3. ServicioUsuarioConRoles hasheando contraseña con BCrypt costo 12 y transformando [1, 2] en JSON [{"fkidrol": 1}, {"fkidrol": 2}] para OPENJSON.
+4. Plantilla usuarios_y_roles.html con checkboxes de roles.
 ```
-

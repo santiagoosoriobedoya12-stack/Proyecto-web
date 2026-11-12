@@ -46,7 +46,7 @@ hacer cualquier cosa. **Eso es lo que la v3 arregla.**
 - **El token en cada petición**, y el rechazo de las que no lo traigan.
 - **La comprobación de permiso** con `verificar_acceso_ruta`, que cruza
   `usuario → rol_usuario → rutarol`: ese procedimiento **ya existe**, y la
-  v3 lo usa en vez de armar el `JOIN` en C#.
+  v3 lo invoca desde Python en vez de reescribir la regla en código.
 - **La interfaz gráfica de identificación**, y el menú que **solo muestra lo
   que ese rol puede abrir**.
 
@@ -110,7 +110,7 @@ CALL verificar_acceso_ruta(p_email, p_fkidruta, p_resultado)
 
 | | Por qué no |
 |---|---|
-| **Armar el `JOIN` de permisos en C#** | El procedimiento ya lo hace. Repetirlo deja la regla en dos sitios, y el día que cambie, cambia en uno |
+| **Reescribir la autorización en Python** | El procedimiento ya lo hace. Repetirlo deja la regla en dos sitios, y el día que cambie, cambia en uno |
 | **Guardar los permisos en el token** | Entonces quitarle un permiso a alguien no surte efecto hasta que el token venza. El permiso se consulta **cuando se usa** |
 
 ### RF5 — El menú solo muestra lo que ese rol puede abrir
@@ -135,7 +135,7 @@ eso**.
 | **3** | Una operación **sin token** responde **401** |
 | **4** | Un token **alterado** responde **401** |
 | **5** | Un usuario con rol sin permiso responde **403** — y la diferencia con el 401 se puede explicar |
-| **6** | El permiso lo resuelve **`verificar_acceso_ruta`**: no hay un `JOIN` de permisos escrito en C# |
+| **6** | El permiso lo resuelve **`verificar_acceso_ruta`**: no hay lógica duplicada en Python para decidir accesos |
 | **7** | **Quitarle un permiso a un rol surte efecto sin volver a identificarse** — porque el permiso no está en el token |
 | **8** | El menú de la interfaz gráfica cambia según el rol |
 | **9** | **Escribir la dirección a mano, sin permiso, responde 403** — el menú escondido no era la protección |

@@ -40,16 +40,14 @@ detalle, usuarios y roles. Credenciales de BD (didácticas): `sa` /
 | `stock` | `INT` | No nulo, ≥ 0 (regla de la API) |
 | `valorunitario` | `DECIMAL(18,2)` | No nulo, ≥ 0 (regla de la API) |
 
-En C#, esa fila viaja como el modelo entidad:
+En Python, esa fila viaja validada con Pydantic y representada como diccionario tipado:
 
-```csharp
-public class Producto
-{
-    public required string Codigo { get; set; }
-    public required string Nombre { get; set; }
-    public int Stock { get; set; }
-    public decimal Valorunitario { get; set; }   // decimal = el tipo para dinero
-}
+```python
+class ProductoCrear(BaseModel):
+    codigo: str = Field(..., min_length=1, max_length=10)
+    nombre: str = Field(..., min_length=1, max_length=100)
+    stock: int = Field(..., ge=0)
+    valorunitario: float = Field(..., ge=0)
 ```
 
 ## 3. Las dos murallas de validación
