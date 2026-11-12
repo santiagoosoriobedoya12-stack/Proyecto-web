@@ -1,6 +1,6 @@
 # ==============================================================
 # Dockerfile para el Frontend Web en Python (front_python)
-# Utiliza FastAPI + Jinja2 + Bootstrap Local en el puerto 8096
+# Utiliza Flask + Jinja2 + Bootstrap Local en el puerto 8096
 # ==============================================================
 
 FROM python:3.12-slim
@@ -17,4 +17,4 @@ COPY . .
 
 EXPOSE 8096
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8096", "--reload"]
+CMD ["python", "app.py"]

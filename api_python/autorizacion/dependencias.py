@@ -1,20 +1,18 @@
 # ==============================================================
 # AUTORIZACIÓN TRANSVERSAL VERSIÓN 3 (JWT + RBAC DINÁMICO)
-# Equivalente en Python al middleware JwtBearer + [ExigePermiso("...")]:
-# 1. exige_usuario_autenticado -> Valida firma, emisor, audiencia y expiración del JWT (401 si falla).
-# 2. exige_permiso(nombre_ruta) -> Consulta 'verificar_acceso_ruta' en SQL Server en CADA petición (403 si falla).
+# Utiliza el contrato abstracto IRepositorioAcceso entregado por el ensamblador
+# para validar la firma JWT (401) y consultar 'verificar_acceso_ruta' (403).
 # ==============================================================
 
 from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from config import JWT_KEY, JWT_ISSUER, JWT_AUDIENCE
+from ensamblador import obtener_repositorio_acceso
 from excepciones import NoAutenticadoExcepcion, SinPermisoExcepcion
-from repositorios import RepositorioAcceso
 
-# auto_error=False permite responder nuestro JSON personalizado 401 en lugar del 403 genérico por defecto de FastAPI
 _esquema_bearer = HTTPBearer(auto_error=False)
-_repo_acceso = RepositorioAcceso()
+_repo_acceso = obtener_repositorio_acceso()
 
 
 def exige_usuario_autenticado(
@@ -29,7 +27,6 @@ def exige_usuario_autenticado(
 
     token = credenciales.credentials
     try:
-        # leeway=0 equivale a ClockSkew = TimeSpan.Zero: sin margen de tolerancia al expirar
         payload = jwt.decode(
             token,
             JWT_KEY,
@@ -50,18 +47,14 @@ def exige_usuario_autenticado(
 
 def exige_permiso(nombre_ruta: str):
     """
-    Fábrica de dependencia FastAPI (equivalente a [ExigePermiso("interfaz.x")]).
-    Verifica en vivo mediante el Stored Procedure 'verificar_acceso_ruta' si el rol del usuario
-    tiene autorizada la ruta indicada. Quitar un permiso surte efecto inmediato (Criterio 7).
+    Fábrica de dependencia FastAPI que valida en vivo el permiso RBAC contra SQL Server
+    invocando 'verificar_acceso_ruta'. Revocar un permiso surte efecto inmediato.
     """
     def _verificar(email: str = Depends(exige_usuario_autenticado)) -> str:
-        # 1. Traduce el nombre lógico de ruta al ID numérico en la tabla 'ruta'
         id_ruta = _repo_acceso.obtener_id_ruta_por_nombre(nombre_ruta)
         if id_ruta is None:
-            # Si la ruta no existe registrada en BD, falla cerrado por seguridad (HTTP 403)
             raise SinPermisoExcepcion("Su rol no tiene permiso para esta operacion.", ruta=nombre_ruta)
 
-        # 2. Invoca el SP oficial 'verificar_acceso_ruta' en SQL Server
         tiene_acceso = _repo_acceso.verificar_acceso_ruta(email, id_ruta)
         if not tiene_acceso:
             raise SinPermisoExcepcion("Su rol no tiene permiso para esta operacion.", ruta=nombre_ruta)

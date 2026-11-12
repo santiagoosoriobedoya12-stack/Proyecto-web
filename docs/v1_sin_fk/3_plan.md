@@ -1,4 +1,4 @@
-# Plan técnico — Versión 1: las seis tablas sin FK (Python / FastAPI + Jinja2)
+# Plan técnico — Versión 1: las seis tablas sin FK (Python: FastAPI + Flask + Jinja2)
 
 > **Versión 1** · CÓMO construir lo especificado en [2_spec.md](2_spec.md).
 > El porqué de cada decisión: [4_research.md](4_research.md) · contratos
@@ -33,32 +33,37 @@
     ├── Dockerfile                    # imagen python:3.12-slim en puerto 8032 (expuesto en 8035)
     ├── peticiones/
     │   └── esquemas.py               # ProductoCrear, ProductoReemplazo, ProductoActualizar (y las demás tablas)
-    ├── routers/
-    │   └── router_v1.py              # HTTP: GET/POST/PUT/PATCH/DELETE + códigos de estado
+    ├── modelos/
+    │   └── entidades.py              # Entidades POO tipadas (Producto, Empresa, Persona, Rol, Ruta, Usuario)
+    ├── controladores/
+    │   └── controlador_v1.py         # HTTP: GET/POST/PUT/PATCH/DELETE + códigos de estado
     ├── servicios/
-    │   └── servicio_v1.py            # reglas de negocio de las 6 tablas base (desacoplado de SQL)
+    │   └── servicio_v1.py            # reglas de negocio (compone IRepositorio* vía constructor)
     ├── repositorios/
-    │   └── repositorio_v1.py         # PyMSSQL + SQL parametrizado a mano
+    │   ├── interfaces.py             # contratos abstractos ABC (IRepositorioProducto, etc.)
+    │   └── repositorio_v1.py         # PyMSSQL + SQL explícito parametrizado a mano
+    ├── ensamblador.py                # ÚNICO archivo que instancia concretos e inyecta servicios
     └── pruebas/
-        └── test_capas.py             # pruebas unitarias unittest con repositorios falsos en memoria (sin BD)
+        └── test_capas.py             # pruebas unittest con polimorfismo en memoria (sin BD)
 ```
 
-### 2bis. El front, que es un proyecto APARTE
+### 2bis. El front, que es un proyecto APARTE (Flask + Jinja2)
 
 ```text
 front_python/
-├── requirements.txt                  # fastapi, uvicorn, jinja2, httpx, python-multipart (SIN pymssql)
-├── main.py                           # rutas web HTML y consumo paralelo con asyncio.gather
+├── requirements.txt                  # flask, httpx (SIN pymssql)
+├── app.py                            # rutas Flask explícitas por recurso y carga paralela
 ├── Dockerfile                        # python:3.12-slim en puerto 8096 (expuesto en 8099)
 ├── servicios/
-│   └── cliente_api.py                # el ÚNICO módulo que hace peticiones HTTP (httpx) a la API
+│   ├── cliente_api.py                # transporte httpx y sesiones HttpOnly en servidor
+│   └── servicios_recursos.py         # funciones explícitas por operación (listar_productos, etc.)
 ├── templates/
 │   ├── base.html                     # layout base + navegación dinámica
 │   ├── home.html                     # página de bienvenida
-│   └── crud_generico.html            # interfaz CRUD reutilizable de las tablas sin FK
+│   └── crud_recurso.html             # interfaz CRUD reutilizable por vistas explícitas
 └── static/css/
     ├── bootstrap.min.css             # SERVIDO DESDE AQUÍ, nunca por CDN
-    └── app.css                       # capa visual corporativa encima de Bootstrap
+    └── app.css                       # capa visual encima de Bootstrap
 ```
 
 **Que el front y la API estén ambos en Python no rompe el aislamiento entre procesos**, y hay que
@@ -76,19 +81,17 @@ cuidarlo: la separación real garantiza cero dependencias compartidas.
 ```text
 HTTP → FastAPI routing        (decoradores @router.get/@router.post… deciden el método)
      → validación Pydantic    (esquemas Crear/Reemplazo/Actualizar → 422 automático)
-     → Router (router_v1.py)  (delega al servicio y retorna JSON normalizado)
-     → Servicio               (servicio_v1.py — reglas de negocio, sin conocer PyMSSQL)
-     → Repositorio            (repositorio_v1.py — PyMSSQL + parámetros %s)
+     → Controlador (controlador_v1.py) (delega al servicio ensamblado y retorna JSON)
+     → Servicio               (servicio_v1.py — recibe IRepositorio*, sin conocer PyMSSQL)
+     → IRepositorio* (ABC)    (interfaces.py — abstracción pura)
+     → Repositorio*SqlServer  (repositorio_v1.py — PyMSSQL + parámetros %s)
      → SQL Server
 ```
 
 ## 4. Decisiones de diseño clave
 
-### 4.1 Repositorio base reutilizable y especializaciones tipadas
-En `api_python/repositorios/repositorio_v1.py`, `RepositorioTablaBase` encapsula la mecánica común
-de consulta, inserción, actualización dinámica controlada por whitelist de columnas y borrado parametrizado,
-mientras cada clase hija (`RepositorioProducto`, `RepositorioEmpresa`, `RepositorioPersona`, `RepositorioRol`,
-`RepositorioRuta`, `RepositorioUsuario`) define explícitamente su tabla, clave primaria y orden.
+### 4.1 Interfaces abstractas (`ABC`) y ensamblador explícito
+En `api_python/repositorios/interfaces.py`, cada tabla declara su contrato abstracto (`IRepositorioProducto`, `IRepositorioEmpresa`, etc.). Las implementaciones SQL Server en `repositorio_v1.py` declaran explícitamente su SQL y lista blanca de actualización, y `ensamblador.py` es el único archivo que instancia concretos.
 
 ### 4.2 La validación vive en las PETICIONES (una por verbo)
 - `ProductoCrear`      → POST: todos obligatorios (con código)

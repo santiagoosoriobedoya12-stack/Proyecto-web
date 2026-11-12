@@ -1,10 +1,9 @@
-# Paquete de servicios HTTP y gestión de sesiones del Frontend Python
+# Paquete de servicios HTTP del frontend Flask
 from .cliente_api import (
-    URL_API,
     COOKIE_SESION,
     obtener_sesion,
     crear_sesion_servidor,
     cerrar_sesion_servidor,
     tiene_permiso,
-    llamar_api,
 )
+from . import servicios_recursos

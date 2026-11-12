@@ -1,13 +1,12 @@
 # ==============================================================
 # SERVICIOS DE DOMINIO VERSIÓN 2 (6 TABLAS CON FK + USUARIO CON ROLES)
-# - Traduce las colecciones de entrada al JSON exacto que esperan los Stored Procedures:
-#   * Factura -> [{"fkcodproducto": "P001", "cantidad": 2}] (sin precios ni totales!)
-#   * UsuarioConRoles -> [{"fkidrol": 1}, {"fkidrol": 3}] (clave obligatoria 'fkidrol' para OPENJSON)
-# - En UsuarioConRoles cifra nuevas contraseñas con BCrypt costo 12.
+# - Reciben sus repositorios por constructor tipados contra IRepositorio* (ABC).
+# - Traducen arreglos a JSON para OPENJSON sin calcular precios/totales de factura.
 # ==============================================================
 
 import json
 from excepciones import NoEncontradoExcepcion, ValidacionNegocioExcepcion
+from modelos import Cliente, Vendedor, RolUsuario
 from peticiones import (
     ClienteCrear, ClienteReemplazo, ClienteActualizar,
     VendedorCrear, VendedorReemplazo, VendedorActualizar,
@@ -15,13 +14,13 @@ from peticiones import (
     RolUsuarioCrear, RutaRolCrear,
     UsuarioConRolesCrear, UsuarioConRolesActualizar,
 )
-from repositorios import (
-    RepositorioCliente,
-    RepositorioVendedor,
-    RepositorioFactura,
-    RepositorioRolUsuario,
-    RepositorioRutaRol,
-    RepositorioUsuarioConRoles,
+from repositorios.interfaces import (
+    IRepositorioCliente,
+    IRepositorioVendedor,
+    IRepositorioFactura,
+    IRepositorioRolUsuario,
+    IRepositorioRutaRol,
+    IRepositorioUsuarioConRoles,
 )
 from servicios.servicio_v1 import _validar_limite, _validar_texto_clave, _hashear_contrasena
 
@@ -29,7 +28,7 @@ from servicios.servicio_v1 import _validar_limite, _validar_texto_clave, _hashea
 class ServicioCliente:
     """Reglas de negocio para 'cliente' (FK obligatoria a persona, opcional a empresa)."""
 
-    def __init__(self, repo: RepositorioCliente):
+    def __init__(self, repo: IRepositorioCliente):
         self.repo = repo
 
     def listar(self, limite: int) -> list[dict]:
@@ -44,18 +43,18 @@ class ServicioCliente:
 
     def crear(self, pet: ClienteCrear) -> dict:
         per = pet.fkcodpersona.strip()
-        # Si fkcodempresa viene vacía "", se normaliza a None (NULL en SQL) para evitar 409 falso (C2 v2)
+        # Si fkcodempresa llega vacía "", se normaliza a None (NULL en SQL) para personas naturales
         emp = pet.fkcodempresa.strip() if pet.fkcodempresa and pet.fkcodempresa.strip() else None
         nuevo_id = self.repo.crear(pet.credito, per, emp)
-        return {"id": nuevo_id, "credito": pet.credito, "fkcodpersona": per, "fkcodempresa": emp}
+        return Cliente(id=nuevo_id, credito=pet.credito, fkcodpersona=per, fkcodempresa=emp).a_diccionario()
 
     def reemplazar(self, id_cliente: int, pet: ClienteReemplazo) -> dict:
         if not self.repo.obtener_por_clave(id_cliente):
             raise NoEncontradoExcepcion(f"No existe un cliente con id = {id_cliente}")
         emp = pet.fkcodempresa.strip() if pet.fkcodempresa and pet.fkcodempresa.strip() else None
-        datos = {"credito": pet.credito, "fkcodpersona": pet.fkcodpersona.strip(), "fkcodempresa": emp}
-        self.repo.actualizar_parcial(id_cliente, datos)
-        return {"id": id_cliente, **datos}
+        per = pet.fkcodpersona.strip()
+        self.repo.actualizar_parcial(id_cliente, {"credito": pet.credito, "fkcodpersona": per, "fkcodempresa": emp})
+        return Cliente(id=id_cliente, credito=pet.credito, fkcodpersona=per, fkcodempresa=emp).a_diccionario()
 
     def actualizar_parcial(self, id_cliente: int, pet: ClienteActualizar) -> int:
         datos = {}
@@ -81,7 +80,7 @@ class ServicioCliente:
 class ServicioVendedor:
     """Reglas de negocio para 'vendedor' (FK obligatoria a persona)."""
 
-    def __init__(self, repo: RepositorioVendedor):
+    def __init__(self, repo: IRepositorioVendedor):
         self.repo = repo
 
     def listar(self, limite: int) -> list[dict]:
@@ -98,14 +97,15 @@ class ServicioVendedor:
         dir_limpia = pet.direccion.strip()
         per = pet.fkcodpersona.strip()
         nuevo_id = self.repo.crear(pet.carnet, dir_limpia, per)
-        return {"id": nuevo_id, "carnet": pet.carnet, "direccion": dir_limpia, "fkcodpersona": per}
+        return Vendedor(id=nuevo_id, carnet=pet.carnet, direccion=dir_limpia, fkcodpersona=per).a_diccionario()
 
     def reemplazar(self, id_vendedor: int, pet: VendedorReemplazo) -> dict:
         if not self.repo.obtener_por_clave(id_vendedor):
             raise NoEncontradoExcepcion(f"No existe un vendedor con id = {id_vendedor}")
-        datos = {"carnet": pet.carnet, "direccion": pet.direccion.strip(), "fkcodpersona": pet.fkcodpersona.strip()}
-        self.repo.actualizar_parcial(id_vendedor, datos)
-        return {"id": id_vendedor, **datos}
+        dir_limpia = pet.direccion.strip()
+        per = pet.fkcodpersona.strip()
+        self.repo.actualizar_parcial(id_vendedor, {"carnet": pet.carnet, "direccion": dir_limpia, "fkcodpersona": per})
+        return Vendedor(id=id_vendedor, carnet=pet.carnet, direccion=dir_limpia, fkcodpersona=per).a_diccionario()
 
     def actualizar_parcial(self, id_vendedor: int, pet: VendedorActualizar) -> int:
         datos = {}
@@ -129,13 +129,9 @@ class ServicioVendedor:
 
 
 class ServicioFactura:
-    """
-    Orquesta la facturación Maestro-Detalle.
-    Toda la matemática contable (precio, subtotal, total, descuento y retorno de stock)
-    se ejecuta dentro de SQL Server mediante Stored Procedures y Triggers.
-    """
+    """Orquesta la facturación Maestro-Detalle delegando totales y stock en SQL Server."""
 
-    def __init__(self, repo: RepositorioFactura):
+    def __init__(self, repo: IRepositorioFactura):
         self.repo = repo
 
     def listar(self) -> list[dict]:
@@ -145,7 +141,6 @@ class ServicioFactura:
         return self.repo.obtener_por_numero(numero)
 
     def crear(self, pet: FacturaCrear) -> dict:
-        # Serializa únicamente código de producto y cantidad para OPENJSON en sp_insertar_factura_y_productosporfactura
         productos_json = json.dumps(
             [{"fkcodproducto": item.fkcodproducto.strip(), "cantidad": item.cantidad} for item in pet.productos]
         )
@@ -158,7 +153,7 @@ class ServicioFactura:
 class ServicioRolUsuario:
     """Reglas de negocio para la tabla puente 'rol_usuario'."""
 
-    def __init__(self, repo: RepositorioRolUsuario):
+    def __init__(self, repo: IRepositorioRolUsuario):
         self.repo = repo
 
     def listar(self) -> list[dict]:
@@ -187,7 +182,7 @@ class ServicioRolUsuario:
 class ServicioRutaRol:
     """Reglas de negocio para la tabla puente de permisos 'rutarol'."""
 
-    def __init__(self, repo: RepositorioRutaRol):
+    def __init__(self, repo: IRepositorioRutaRol):
         self.repo = repo
 
     def listar(self) -> list[dict]:
@@ -201,13 +196,9 @@ class ServicioRutaRol:
 
 
 class ServicioUsuarioConRoles:
-    """
-    Reglas de dominio para 'usuario-con-roles'.
-    1. Convierte la lista [1, 3] a [{"fkidrol": 1}, {"fkidrol": 3}] para OPENJSON.
-    2. Cifra contraseñas con BCrypt costo 12; en PUT, si llega vacía envía NULL al SP para conservar la clave.
-    """
+    """Reglas de dominio para el recurso compuesto 'usuario-con-roles' (OPENJSON + BCrypt)."""
 
-    def __init__(self, repo: RepositorioUsuarioConRoles):
+    def __init__(self, repo: IRepositorioUsuarioConRoles):
         self.repo = repo
 
     def listar(self) -> list[dict]:

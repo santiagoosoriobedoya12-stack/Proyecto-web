@@ -42,9 +42,9 @@ La **Versión 2** completa el modelo relacional de la empresa introduciendo tres
    - El código **409 Conflict** indica que la petición estaba bien formada sintácticamente, pero choca con el **estado actual de la base de datos** (la FK referenciada no existe, o se intentó borrar un registro padre con hijos asociados).
 2. **¿Por qué el repositorio de Factura no tiene `INSERT INTO factura`?**
    - Para garantizar la atomicidad contable. `sp_insertar_factura_y_productosporfactura` recibe encabezado y detalle en JSON, abre transacción, calcula subtotales y activa el disparador que descuenta inventario.
-3. **Optimización de carga paralela en `front_python/` (`asyncio.gather`):**
+3. **Optimización de carga paralela en `front_python/` (`ThreadPoolExecutor`):**
    - En pantallas con múltiples catálogos foráneos (como `/clientes` que requiere personas y empresas, o `/emitir-factura` que requiere clientes, vendedores y productos), las llamadas secuenciales sumarían latencias.
-   - En `front_python/main.py`, `asyncio.gather(...)` dispara las peticiones HTTP vía `httpx` concurrentemente en paralelo.
+   - En `front_python/app.py` (Flask), `ThreadPoolExecutor` dispara las peticiones HTTP vía `httpx` concurrentemente en paralelo.
 
 ---
 

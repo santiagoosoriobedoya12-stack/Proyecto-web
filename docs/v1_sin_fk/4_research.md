@@ -9,8 +9,8 @@
 ## D1 — El ejecutor de la capa de datos: PyMSSQL (SQL directo)
 **Decisión:** PyMSSQL con SQL parametrizado a mano (`%s`) y cursor en modo diccionario (`as_dict=True`). Se descartan ORMs pesados como SQLAlchemy ORM para mantener el SQL completamente visible y auditable.
 
-## D2 — Capas completas desde el día 1
-Router (`routers/router_v1.py`) → Servicio (`servicios/servicio_v1.py`) → Repositorio (`repositorios/repositorio_v1.py`) desacoplados y verificables en pruebas unitarias sin base de datos (`pruebas/test_capas.py`).
+## D2 — Capas completas y P.O.O. desde el día 1
+Controlador (`controladores/controlador_v1.py`) → Servicio (`servicios/servicio_v1.py` recibiendo interfaz `IRepositorio*` por constructor) → Repositorio (`repositorios/repositorio_v1.py` implementando `ABC`) ensamblados en `ensamblador.py` y verificables sin BD con repositorios en memoria (`pruebas/test_capas.py`).
 
 ## D3 — Inyección por composición explícita y estado en contenedor
 El ensamblaje en `api_python/main.py` centraliza los manejadores globales de excepciones para traducir errores de negocio en respuestas JSON homogéneas.

@@ -1,10 +1,20 @@
 # ==============================================================
-# ROUTERS HTTP VERSIÓN 2: LOS 6 RECURSOS CON FK + USUARIO CON ROLES
-# Protegidos por JWT + RBAC (Versión 3).
+# CONTROLADORES HTTP VERSIÓN 2: LOS 6 RECURSOS CON FK + USUARIO CON ROLES
+# Reciben sus servicios ya ensamblados desde ensamblador.py.
+# Protegidos transversalmente por JWT + RBAC (Versión 3).
 # ==============================================================
 
 from fastapi import APIRouter, Depends, Response, status
 from autorizacion import exige_permiso
+from controladores.controlador_v1 import _respuesta_lista
+from ensamblador import (
+    servicio_cliente,
+    servicio_vendedor,
+    servicio_factura,
+    servicio_rol_usuario,
+    servicio_rutarol,
+    servicio_usuario_roles,
+)
 from peticiones import (
     ClienteCrear, ClienteReemplazo, ClienteActualizar,
     VendedorCrear, VendedorReemplazo, VendedorActualizar,
@@ -12,22 +22,6 @@ from peticiones import (
     RolUsuarioCrear, RutaRolCrear,
     UsuarioConRolesCrear, UsuarioConRolesActualizar,
 )
-from repositorios import (
-    RepositorioCliente, RepositorioVendedor, RepositorioFactura,
-    RepositorioRolUsuario, RepositorioRutaRol, RepositorioUsuarioConRoles,
-)
-from servicios import (
-    ServicioCliente, ServicioVendedor, ServicioFactura,
-    ServicioRolUsuario, ServicioRutaRol, ServicioUsuarioConRoles,
-)
-from routers.router_v1 import _respuesta_lista
-
-_srv_cliente = ServicioCliente(RepositorioCliente())
-_srv_vendedor = ServicioVendedor(RepositorioVendedor())
-_srv_factura = ServicioFactura(RepositorioFactura())
-_srv_rol_usuario = ServicioRolUsuario(RepositorioRolUsuario())
-_srv_rutarol = ServicioRutaRol(RepositorioRutaRol())
-_srv_usuario_roles = ServicioUsuarioConRoles(RepositorioUsuarioConRoles())
 
 
 # ---------------- 7. CLIENTE (/api/cliente) ----------------
@@ -36,33 +30,33 @@ router_cliente = APIRouter(prefix="/api/cliente", tags=["v2 - Cliente"], depende
 
 @router_cliente.get("")
 def listar_clientes(limite: int = 1000):
-    return _respuesta_lista("cliente", limite, _srv_cliente.listar(limite))
+    return _respuesta_lista("cliente", limite, servicio_cliente.listar(limite))
 
 
 @router_cliente.get("/{id_cliente}")
 def obtener_cliente(id_cliente: int):
-    return _srv_cliente.obtener(id_cliente)
+    return servicio_cliente.obtener(id_cliente)
 
 
 @router_cliente.post("", status_code=status.HTTP_201_CREATED)
 def crear_cliente(pet: ClienteCrear):
-    return _srv_cliente.crear(pet)
+    return servicio_cliente.crear(pet)
 
 
 @router_cliente.put("/{id_cliente}")
 def reemplazar_cliente(id_cliente: int, pet: ClienteReemplazo):
-    return _srv_cliente.reemplazar(id_cliente, pet)
+    return servicio_cliente.reemplazar(id_cliente, pet)
 
 
 @router_cliente.patch("/{id_cliente}")
 def actualizar_cliente(id_cliente: int, pet: ClienteActualizar):
-    filas = _srv_cliente.actualizar_parcial(id_cliente, pet)
+    filas = servicio_cliente.actualizar_parcial(id_cliente, pet)
     return {"mensaje": "Cliente actualizado correctamente.", "filas_afectadas": filas}
 
 
 @router_cliente.delete("/{id_cliente}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_cliente(id_cliente: int):
-    _srv_cliente.eliminar(id_cliente)
+    servicio_cliente.eliminar(id_cliente)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -72,33 +66,33 @@ router_vendedor = APIRouter(prefix="/api/vendedor", tags=["v2 - Vendedor"], depe
 
 @router_vendedor.get("")
 def listar_vendedores(limite: int = 1000):
-    return _respuesta_lista("vendedor", limite, _srv_vendedor.listar(limite))
+    return _respuesta_lista("vendedor", limite, servicio_vendedor.listar(limite))
 
 
 @router_vendedor.get("/{id_vendedor}")
 def obtener_vendedor(id_vendedor: int):
-    return _srv_vendedor.obtener(id_vendedor)
+    return servicio_vendedor.obtener(id_vendedor)
 
 
 @router_vendedor.post("", status_code=status.HTTP_201_CREATED)
 def crear_vendedor(pet: VendedorCrear):
-    return _srv_vendedor.crear(pet)
+    return servicio_vendedor.crear(pet)
 
 
 @router_vendedor.put("/{id_vendedor}")
 def reemplazar_vendedor(id_vendedor: int, pet: VendedorReemplazo):
-    return _srv_vendedor.reemplazar(id_vendedor, pet)
+    return servicio_vendedor.reemplazar(id_vendedor, pet)
 
 
 @router_vendedor.patch("/{id_vendedor}")
 def actualizar_vendedor(id_vendedor: int, pet: VendedorActualizar):
-    filas = _srv_vendedor.actualizar_parcial(id_vendedor, pet)
+    filas = servicio_vendedor.actualizar_parcial(id_vendedor, pet)
     return {"mensaje": "Vendedor actualizado correctamente.", "filas_afectadas": filas}
 
 
 @router_vendedor.delete("/{id_vendedor}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_vendedor(id_vendedor: int):
-    _srv_vendedor.eliminar(id_vendedor)
+    servicio_vendedor.eliminar(id_vendedor)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -108,7 +102,7 @@ router_factura = APIRouter(prefix="/api/factura", tags=["v2 - Factura"], depende
 
 @router_factura.get("")
 def listar_facturas():
-    datos = _srv_factura.listar()
+    datos = servicio_factura.listar()
     if not datos:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     return {"tabla": "factura", "total": len(datos), "datos": datos}
@@ -116,18 +110,17 @@ def listar_facturas():
 
 @router_factura.get("/{numero}")
 def obtener_factura(numero: int):
-    return _srv_factura.obtener(numero)
+    return servicio_factura.obtener(numero)
 
 
 @router_factura.post("", status_code=status.HTTP_201_CREATED)
 def crear_factura(pet: FacturaCrear):
-    return _srv_factura.crear(pet)
+    return servicio_factura.crear(pet)
 
 
 @router_factura.delete("/{numero}")
 def anular_factura(numero: int):
-    """Anulación lógica (no borra la fila física): cambia estado='anulada' y devuelve stock."""
-    return _srv_factura.anular(numero)
+    return servicio_factura.anular(numero)
 
 
 # ---------------- 11. ROL_USUARIO (/api/rol-usuario) ----------------
@@ -136,7 +129,7 @@ router_rol_usuario = APIRouter(prefix="/api/rol-usuario", tags=["v2 - RolUsuario
 
 @router_rol_usuario.get("")
 def listar_rol_usuario():
-    datos = _srv_rol_usuario.listar()
+    datos = servicio_rol_usuario.listar()
     if not datos:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     return {"tabla": "rol_usuario", "total": len(datos), "datos": datos}
@@ -144,24 +137,24 @@ def listar_rol_usuario():
 
 @router_rol_usuario.get("/usuario/{email}")
 def obtener_roles_de_usuario(email: str):
-    datos = _srv_rol_usuario.obtener_por_usuario(email)
+    datos = servicio_rol_usuario.obtener_por_usuario(email)
     return {"usuario": email, "total": len(datos), "datos": datos}
 
 
 @router_rol_usuario.get("/rol/{idrol}")
 def obtener_usuarios_de_rol(idrol: int):
-    datos = _srv_rol_usuario.obtener_por_rol(idrol)
+    datos = servicio_rol_usuario.obtener_por_rol(idrol)
     return {"idrol": idrol, "total": len(datos), "datos": datos}
 
 
 @router_rol_usuario.post("", status_code=status.HTTP_201_CREATED)
 def crear_rol_usuario(pet: RolUsuarioCrear):
-    return _srv_rol_usuario.crear(pet)
+    return servicio_rol_usuario.crear(pet)
 
 
 @router_rol_usuario.delete("/{email}/{idrol}", status_code=status.HTTP_204_NO_CONTENT)
 def eliminar_rol_usuario(email: str, idrol: int):
-    _srv_rol_usuario.eliminar(email, idrol)
+    servicio_rol_usuario.eliminar(email, idrol)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -171,7 +164,7 @@ router_rutarol = APIRouter(prefix="/api/rutarol", tags=["v2/v3 - RutaRol (Permis
 
 @router_rutarol.get("")
 def listar_rutarol():
-    datos = _srv_rutarol.listar()
+    datos = servicio_rutarol.listar()
     if not datos:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     return {"tabla": "rutarol", "total": len(datos), "datos": datos}
@@ -179,12 +172,12 @@ def listar_rutarol():
 
 @router_rutarol.post("", status_code=status.HTTP_201_CREATED)
 def crear_rutarol(pet: RutaRolCrear):
-    return _srv_rutarol.crear(pet)
+    return servicio_rutarol.crear(pet)
 
 
 @router_rutarol.delete("/{idruta}/{idrol}")
 def eliminar_rutarol(idruta: int, idrol: int):
-    return _srv_rutarol.eliminar(idruta, idrol)
+    return servicio_rutarol.eliminar(idruta, idrol)
 
 
 # ---------------- RECURSO COMPUESTO: USUARIO CON ROLES (/api/usuario-con-roles) ----------------
@@ -193,7 +186,7 @@ router_usuario_roles = APIRouter(prefix="/api/usuario-con-roles", tags=["v2 - Us
 
 @router_usuario_roles.get("")
 def listar_usuarios_con_roles():
-    datos = _srv_usuario_roles.listar()
+    datos = servicio_usuario_roles.listar()
     if not datos:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     return {"tabla": "usuario_con_roles", "total": len(datos), "datos": datos}
@@ -201,19 +194,19 @@ def listar_usuarios_con_roles():
 
 @router_usuario_roles.get("/{email}")
 def consultar_usuario_con_roles(email: str):
-    return _srv_usuario_roles.consultar(email)
+    return servicio_usuario_roles.consultar(email)
 
 
 @router_usuario_roles.post("", status_code=status.HTTP_201_CREATED)
 def crear_usuario_con_roles(pet: UsuarioConRolesCrear):
-    return _srv_usuario_roles.crear(pet)
+    return servicio_usuario_roles.crear(pet)
 
 
 @router_usuario_roles.put("/{email}")
 def actualizar_usuario_con_roles(email: str, pet: UsuarioConRolesActualizar):
-    return _srv_usuario_roles.actualizar(email, pet)
+    return servicio_usuario_roles.actualizar(email, pet)
 
 
 @router_usuario_roles.delete("/{email}")
 def eliminar_usuario_con_roles(email: str):
-    return _srv_usuario_roles.eliminar(email)
+    return servicio_usuario_roles.eliminar(email)

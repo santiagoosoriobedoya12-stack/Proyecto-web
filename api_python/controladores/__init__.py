@@ -1,5 +1,5 @@
-# Paquete de Routers HTTP REST (Controladores FastAPI por versión: v1, v2, v3)
-from .router_v1 import (
+# Paquete de Controladores HTTP REST (v1, v2, v3)
+from .controlador_v1 import (
     router_producto,
     router_empresa,
     router_persona,
@@ -7,7 +7,7 @@ from .router_v1 import (
     router_ruta,
     router_usuario,
 )
-from .router_v2 import (
+from .controlador_v2 import (
     router_cliente,
     router_vendedor,
     router_factura,
@@ -15,4 +15,4 @@ from .router_v2 import (
     router_rutarol,
     router_usuario_roles,
 )
-from .router_sesion import router_sesion, router_permisos
+from .controlador_sesion import router_sesion, router_permisos

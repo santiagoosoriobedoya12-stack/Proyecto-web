@@ -48,7 +48,7 @@ entender:
 
 | | |
 |---|---|
-| **Archivos** | `api_python/peticiones/esquemas.py` (`SesionCrear`) · `api_python/servicios/servicio_sesion.py` · `api_python/routers/router_sesion.py` |
+| **Archivos** | `api_python/peticiones/esquemas.py` (`SesionCrear`) · `api_python/servicios/servicio_sesion.py` · `api_python/controladores/controlador_sesion.py` |
 | **Lo que importa** | Las credenciales van **en el cuerpo JSON**, nunca en la URL. Y responde **el mismo mensaje 401** para correo inexistente y contraseña incorrecta |
 | **Verificación** | Credenciales correctas → **200** con `{ token, expiraEn, email, roles }` · correo inexistente o clave mala → **401 con el mismo mensaje** |
 
@@ -64,7 +64,7 @@ entender:
 
 | | |
 |---|---|
-| **Archivos** | `api_python/repositorios/repositorio_acceso.py` · `api_python/autorizacion/dependencias.py` (`exige_permiso`) · `routers/router_v1.py`, `router_v2.py` |
+| **Archivos** | `api_python/repositorios/repositorio_acceso.py` · `api_python/autorizacion/dependencias.py` (`exige_permiso`) · `controladores/controlador_v1.py`, `controlador_v2.py` |
 | **Lo que importa** | Ejecutar **`verificar_acceso_ruta`** en SQL Server mediante PyMSSQL en cada petición: el `JOIN` de permisos **no se duplica en Python**. Si la ruta no existe en tabla `ruta`, **falla cerrado** (`403`) |
 | **Verificación** | Matriz de roles: `admin` todo `200` · `vendedor1` `403` en usuarios y `200` en clientes · `cliente1` al revés. Quitar permiso en BD afecta inmediatamente **sin volver a loguearse** |
 
@@ -72,7 +72,7 @@ entender:
 
 | | |
 |---|---|
-| **Archivos** | `api_python/routers/router_sesion.py` (`GET /api/permisos/mios`) |
+| **Archivos** | `api_python/controladores/controlador_sesion.py` (`GET /api/permisos/mios`) |
 | **Lo que importa** | El correo se extrae exclusivamente del token validado (`exige_usuario_autenticado`), nunca de un parámetro en la URL |
 | **Verificación** | `admin` recibe las rutas administrativas · `cliente1` recibe solo `["interfaz.inicio", "interfaz.productos"]` |
 
@@ -80,7 +80,7 @@ entender:
 
 | | |
 |---|---|
-| **Archivos** | `front_python/servicios/cliente_api.py` (`SESIONES`, cookie `HttpOnly` `factucorp_sid`) · `front_python/templates/sesion.html` · `front_python/templates/base.html` · `front_python/main.py` |
+| **Archivos** | `front_python/servicios/cliente_api.py` (`SESIONES`, cookie `HttpOnly` `factucorp_sid`) · `front_python/templates/sesion.html` · `front_python/templates/base.html` · `front_python/app.py` |
 | **Lo que importa** | **El token vive en el servidor Python** (diccionario en memoria indexado por `sid` en cookie `HttpOnly`), nunca en `localStorage` ni visible en el DOM |
 | **Verificación** | Iniciar sesión como `admin@correo.com` muestra correo, roles y botón de salida; cerrar sesión invalida la cookie y borra la sesión del servidor |
 
@@ -96,7 +96,7 @@ entender:
 
 | | |
 |---|---|
-| **Archivos** | `front_python/templates/base.html` · `front_python/main.py` |
+| **Archivos** | `front_python/templates/base.html` · `front_python/app.py` |
 | **Lo que importa** | Tras autenticar, `front_python` consulta `GET /api/permisos/mios` y filtra los enlaces visibles de navegación usando `tiene_permiso(sesion, ...)` |
 | **Verificación** | Entrar como `vendedor1`: el menú muestra Clientes, Vendedores y Facturas, ocultando Usuarios y Productos; entrar como `cliente1` invierte la visibilidad |
 

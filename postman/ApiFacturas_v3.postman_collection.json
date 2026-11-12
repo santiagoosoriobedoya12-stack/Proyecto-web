@@ -1,0 +1,85 @@
+{
+  "info": {
+    "name": "API Facturas Python (v1-v3)",
+    "description": "Colección de pruebas para v1 (6 tablas planas), v2 (FK, Factura Maestro-Detalle SPs, Usuario con Roles) y v3 (JWT + RBAC).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8035" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "0. Diagnóstico (Público)",
+      "request": { "method": "GET", "url": "{{baseUrl}}/" }
+    },
+    {
+      "name": "v3 - Login Admin (POST /api/sesion)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@correo.com\",\n  \"contrasena\": \"admin123\"\n}" },
+        "url": "{{baseUrl}}/api/sesion"
+      }
+    },
+    {
+      "name": "v3 - Mis Permisos (GET /api/permisos/mios)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/api/permisos/mios"
+      }
+    },
+    {
+      "name": "v1 - Listar Productos",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/api/producto"
+      }
+    },
+    {
+      "name": "v1 - Crear Producto",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\n  \"codigo\": \"PR90\",\n  \"nombre\": \"Audifonos USB\",\n  \"stock\": 15,\n  \"valorunitario\": 85000\n}" },
+        "url": "{{baseUrl}}/api/producto"
+      }
+    },
+    {
+      "name": "v2 - Listar Clientes",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/api/cliente"
+      }
+    },
+    {
+      "name": "v2 - Emitir Factura (SP + Trigger)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{token}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fkidcliente\": 1,\n  \"fkidvendedor\": 1,\n  \"productos\": [\n    { \"fkcodproducto\": \"PR001\", \"cantidad\": 1 }\n  ]\n}"
+        },
+        "url": "{{baseUrl}}/api/factura"
+      }
+    },
+    {
+      "name": "v2 - Listar Usuarios con Roles (OPENJSON)",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+        "url": "{{baseUrl}}/api/usuario-con-roles"
+      }
+    }
+  ]
+}

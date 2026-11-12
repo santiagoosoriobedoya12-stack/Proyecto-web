@@ -1,10 +1,4 @@
-# Framework web Python que sirve las vistas HTML renderizadas en servidor
-fastapi==0.115.6
-# Servidor ASGI para ejecutar el frontend en el puerto 8096
-uvicorn[standard]==0.34.0
-# Motor de plantillas HTML del lado del servidor (equivalente a Razor)
-jinja2==3.1.5
-# Cliente HTTP asíncrono para consumir la API REST con asyncio.gather (paralelo)
+# Framework web Python para el frontend (renderizado en servidor con Jinja2)
+flask==3.1.0
+# Cliente HTTP para consumir la API REST FastAPI (sin acceso directo a SQL Server)
 httpx==0.28.1
-# Necesario para leer formularios HTML enviados vía POST desde el navegador
-python-multipart==0.0.20

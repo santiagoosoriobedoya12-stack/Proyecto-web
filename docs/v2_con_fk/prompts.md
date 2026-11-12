@@ -22,8 +22,8 @@ Implementa el manejo de claves foráneas y errores relacionales en api_python/:
 Genera el corte vertical en Python para 'cliente':
 1. Esquemas ClienteCrear, ClienteReemplazo, ClienteActualizar en api_python/peticiones/esquemas.py (credito, fkcodpersona obligatoria, fkcodempresa nullable/opcional).
 2. RepositorioCliente en repositorio_v2.py con JOIN a persona y empresa para devolver nombres descriptivos y traducir error 547 a 409.
-3. ServicioCliente en servicio_v2.py y endpoints /api/cliente en router_v2.py.
-4. En front_python/main.py carga personas y empresas en paralelo con asyncio.gather() y muéstralas en <select> dentro de crud_generico.html permitiendo 'Ninguna' -> null para persona natural.
+3. ServicioCliente en servicio_v2.py y endpoints /api/cliente en controlador_v2.py.
+4. En front_python/app.py (Flask) carga personas y empresas en paralelo con ThreadPoolExecutor y muéstralas en <select> dentro de crud_recurso.html permitiendo 'Ninguna' -> null para persona natural.
 ```
 
 ### Tabla 8: `vendedor` (FK a `persona`)
@@ -51,7 +51,7 @@ Genera el módulo de facturación operado 100% mediante Stored Procedures y Trig
 ```text
 Genera el corte vertical para la tabla puente 'rol_usuario':
 1. Esquema RolUsuarioCrear en esquemas.py (fkemail, fkidrol). Sin PUT ni PATCH.
-2. Endpoints en router_v2.py bajo /api/rol-usuario:
+2. Endpoints en controlador_v2.py bajo /api/rol-usuario:
    - GET /api/rol-usuario
    - GET /api/rol-usuario/usuario/{email}
    - GET /api/rol-usuario/rol/{idrol}

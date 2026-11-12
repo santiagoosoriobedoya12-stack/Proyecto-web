@@ -28,7 +28,7 @@ Implementa el módulo de autenticación de la Versión 3 en FastAPI:
    - Consulta el usuario y sus roles mediante RepositorioAcceso.
    - Comprueba la contraseña contra el hash guardado usando bcrypt.checkpw().
    - Genera el token JWT HS256 con pyjwt incluyendo email (sub), roles y tiempos iat/exp sin incluir rutas de permisos.
-3. Crea api_python/routers/router_sesion.py con POST /api/sesion:
+3. Crea api_python/controladores/controlador_sesion.py con POST /api/sesion:
    - Endpoint público (sin dependencia de token).
    - Si las credenciales son incorrectas (email inexistente o clave errada), responde exactamente el MISMO HTTP 401:
      { "estado": 401, "mensaje": "El correo o la contrasena no son correctos." }
@@ -51,18 +51,18 @@ Implementa el control de acceso basado en roles mediante Stored Procedure en Fas
    - Depende de exige_usuario_autenticado y consulta a SQL Server en cada petición (para que revocar un rol aplique al instante sin esperar expiración del JWT).
    - Si no tiene permiso, lanza SinPermisoExcepcion → HTTP 403 Forbidden:
      { "estado": 403, "mensaje": "Su rol no tiene permiso para esta operacion.", "ruta": "interfaz.x" }
-3. Aplica Depends(exige_permiso("interfaz.x")) en todos los routers protegidos (router_v1.py, router_v2.py).
-4. En api_python/routers/router_sesion.py agrega GET /api/permisos/mios:
+3. Aplica Depends(exige_permiso("interfaz.x")) en todos los controladores protegidos (controlador_v1.py, controlador_v2.py).
+4. En api_python/controladores/controlador_sesion.py agrega GET /api/permisos/mios:
    - Toma el email del token validado (no de la URL) y devuelve las rutas autorizadas para armar el menú del frontend.
 ```
 
 ---
 
-## 4. Prompt de Frontend Python con FastAPI + Jinja2 (Fases 7, 8 y 9)
+## 4. Prompt de Frontend Python con Flask + Jinja2 (Fases 7, 8 y 9)
 ```text
-Implementa la gestión de sesiones y menús dinámicos en front_python/ (FastAPI + Jinja2):
+Implementa la gestión de sesiones y menús dinámicos en front_python/ (Flask + Jinja2):
 1. En front_python/servicios/cliente_api.py implementa un almacén de sesiones en memoria del servidor (SESIONES) vinculado únicamente mediante cookie HttpOnly ('factucorp_sid') para no exponer el JWT al navegador ni al DOM.
-2. Implementa POST /login y POST /cerrar-sesion en front_python/main.py consumiendo POST /api/sesion y GET /api/permisos/mios.
+2. Implementa POST /login y POST /cerrar-sesion en front_python/app.py consumiendo POST /api/sesion y GET /api/permisos/mios.
 3. En front_python/templates/sesion.html diseña la vista de inicio de sesión con alertas claras y en base.html muestra usuario conectado, roles y botón de cierre.
 4. En cliente_api.py, inyecta la cabecera 'Authorization: Bearer <token>' en cada llamada httpx y maneja respuestas 401 (sesión expirada), 403 (sin permiso), 409 (conflicto de BD) y 422 (validación).
 5. En front_python/templates/base.html renderiza dinámicamente las secciones de menú usando tiene_permiso(sesion, 'interfaz.x').

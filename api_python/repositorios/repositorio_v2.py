@@ -1,123 +1,132 @@
 # ==============================================================
 # REPOSITORIOS VERSIÓN 2: LAS 6 TABLAS DEPENDIENTES + USUARIO CON ROLES
-# Reglas clave:
-# - Error SQL 547 (FK rota o padre con hijos) -> ConflictoExcepcion (HTTP 409)
-# - Error SQL 2627/2601 (pareja/clave duplicada) -> ConflictoExcepcion (HTTP 409)
-# - 'factura' opera 100% mediante sus Stored Procedures oficiales.
-# - 'rutarol' y 'usuario-con-roles' operan mediante sus Stored Procedures con OPENJSON.
+# - Cada clase implementa explícitamente su contrato abstracto IRepositorio*.
+# - Error SQL 547 / 2627 / 2601 -> ConflictoExcepcion (HTTP 409).
+# - 'factura', 'rutarol' y 'usuario-con-roles' operan mediante Stored Procedures oficiales.
 # ==============================================================
 
-import json
-from database import obtener_conexion, extraer_codigo_sql, normalizar_fila, normalizar_filas
-from excepciones import ConflictoExcepcion, NoEncontradoExcepcion, ValidacionNegocioExcepcion
-from repositorios.repositorio_v1 import RepositorioTablaBase
+from database import (
+    consultar_filas,
+    consultar_fila,
+    ejecutar_dml,
+    ejecutar_insert_identity,
+    ejecutar_sp_json,
+    extraer_codigo_sql,
+)
+from excepciones import ConflictoExcepcion, NoEncontradoExcepcion
+from repositorios.interfaces import (
+    IRepositorioCliente,
+    IRepositorioVendedor,
+    IRepositorioFactura,
+    IRepositorioRolUsuario,
+    IRepositorioRutaRol,
+    IRepositorioUsuarioConRoles,
+)
+from repositorios.repositorio_v1 import ejecutar_update_whitelist, ejecutar_delete_protegido
 
 
-class RepositorioCliente(RepositorioTablaBase):
-    """Repositorio SQL Server para 'cliente' (PK IDENTITY 'id', FKs a persona y empresa)."""
-    tabla = "cliente"
-    columna_pk = "id"
-    columnas_select = "id, credito, fkcodpersona, fkcodempresa"
-    columnas_patch = {"credito", "fkcodpersona", "fkcodempresa"}
+class RepositorioClienteSqlServer(IRepositorioCliente):
+    """Implementación SQL Server de IRepositorioCliente (FKs a persona y empresa)."""
+
+    _PATCH_PERMITIDOS = {"credito", "fkcodpersona", "fkcodempresa"}
+
+    def obtener_todos(self, limite: int) -> list[dict]:
+        sql = "SELECT TOP (%s) id, credito, fkcodpersona, fkcodempresa FROM cliente ORDER BY id"
+        return consultar_filas(sql, (limite,))
+
+    def obtener_por_clave(self, id_cliente: int) -> dict | None:
+        sql = "SELECT id, credito, fkcodpersona, fkcodempresa FROM cliente WHERE id = %s"
+        return consultar_fila(sql, (id_cliente,))
 
     def crear(self, credito: float, fkcodpersona: str, fkcodempresa: str | None) -> int:
-        """Inserta cliente; si fkcodpersona o fkcodempresa no existen (SQL 547), lanza 409."""
         sql = (
             "INSERT INTO cliente (credito, fkcodpersona, fkcodempresa) "
             "VALUES (%s, %s, %s); SELECT CAST(SCOPE_IDENTITY() AS INT) AS nuevo_id;"
         )
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (credito, fkcodpersona, fkcodempresa))
-                    fila = cur.fetchone()
-                    return int(fila["nuevo_id"])
+            return ejecutar_insert_identity(sql, (credito, fkcodpersona, fkcodempresa))
         except Exception as ex:
             if extraer_codigo_sql(ex) == 547:
                 raise ConflictoExcepcion("La persona o empresa referenciada no existe en la base de datos.")
             raise
 
-    def actualizar_parcial(self, clave, datos: dict) -> int:
-        """Sobrescribe PATCH para traducir error 547 si se intenta cambiar a una FK inexistente."""
+    def actualizar_parcial(self, id_cliente: int, datos: dict) -> int:
         try:
-            return super().actualizar_parcial(clave, datos)
+            return ejecutar_update_whitelist("cliente", "id", id_cliente, datos, self._PATCH_PERMITIDOS)
         except ConflictoExcepcion:
             raise ConflictoExcepcion("La persona o empresa referenciada no existe en la base de datos.")
 
+    def eliminar(self, id_cliente: int) -> int:
+        sql = "DELETE FROM cliente WHERE id = %s"
+        return ejecutar_delete_protegido(sql, id_cliente, "cliente")
 
-class RepositorioVendedor(RepositorioTablaBase):
-    """Repositorio SQL Server para 'vendedor' (PK IDENTITY 'id', FK obligatoria a persona)."""
-    tabla = "vendedor"
-    columna_pk = "id"
-    columnas_select = "id, carnet, direccion, fkcodpersona"
-    columnas_patch = {"carnet", "direccion", "fkcodpersona"}
+
+class RepositorioVendedorSqlServer(IRepositorioVendedor):
+    """Implementación SQL Server de IRepositorioVendedor (FK obligatoria a persona)."""
+
+    _PATCH_PERMITIDOS = {"carnet", "direccion", "fkcodpersona"}
+
+    def obtener_todos(self, limite: int) -> list[dict]:
+        sql = "SELECT TOP (%s) id, carnet, direccion, fkcodpersona FROM vendedor ORDER BY id"
+        return consultar_filas(sql, (limite,))
+
+    def obtener_por_clave(self, id_vendedor: int) -> dict | None:
+        sql = "SELECT id, carnet, direccion, fkcodpersona FROM vendedor WHERE id = %s"
+        return consultar_fila(sql, (id_vendedor,))
 
     def crear(self, carnet: int, direccion: str, fkcodpersona: str) -> int:
-        """Inserta vendedor; si fkcodpersona no existe (SQL 547), lanza 409 Conflict."""
         sql = (
             "INSERT INTO vendedor (carnet, direccion, fkcodpersona) "
             "VALUES (%s, %s, %s); SELECT CAST(SCOPE_IDENTITY() AS INT) AS nuevo_id;"
         )
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (carnet, direccion, fkcodpersona))
-                    fila = cur.fetchone()
-                    return int(fila["nuevo_id"])
+            return ejecutar_insert_identity(sql, (carnet, direccion, fkcodpersona))
         except Exception as ex:
             if extraer_codigo_sql(ex) == 547:
                 raise ConflictoExcepcion(f"La persona '{fkcodpersona}' no existe en la base de datos.")
             raise
 
+    def actualizar_parcial(self, id_vendedor: int, datos: dict) -> int:
+        try:
+            return ejecutar_update_whitelist("vendedor", "id", id_vendedor, datos, self._PATCH_PERMITIDOS)
+        except ConflictoExcepcion:
+            raise ConflictoExcepcion("La persona referenciada no existe en la base de datos.")
 
-class RepositorioFactura:
+    def eliminar(self, id_vendedor: int) -> int:
+        sql = "DELETE FROM vendedor WHERE id = %s"
+        return ejecutar_delete_protegido(sql, id_vendedor, "vendedor")
+
+
+class RepositorioFacturaSqlServer(IRepositorioFactura):
     """
-    Repositorio Maestro-Detalle de 'factura' + 'productosporfactura'.
-    Opera exclusivamente invocando los Stored Procedures oficiales de SQL Server.
-    Los subtotales, total y descuento/devolución de stock los ejecuta SQL Server vía Triggers y SPs.
+    Implementación SQL Server Maestro-Detalle de IRepositorioFactura.
+    Opera 100% por Stored Procedures; SQL Server calcula totales y stock en Triggers.
     """
 
     def listar(self) -> list[dict]:
-        """Ejecuta 'sp_listar_facturas_y_productosporfactura' y deserializa el JSON retornado en @p_resultado."""
         sql = """
             DECLARE @out NVARCHAR(MAX);
             EXEC sp_listar_facturas_y_productosporfactura @p_resultado = @out OUTPUT;
             SELECT @out AS resultado;
         """
-        with obtener_conexion() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql)
-                fila = cur.fetchone()
-                raw_json = fila["resultado"] if fila else "[]"
-                if not raw_json or raw_json == "[]":
-                    return []
-                return json.loads(raw_json)
+        res = ejecutar_sp_json(sql)
+        return res if isinstance(res, list) else []
 
     def obtener_por_numero(self, numero: int) -> dict:
-        """Ejecuta 'sp_consultar_factura_y_productosporfactura'; captura THROW 50003 -> 404."""
         sql = """
             DECLARE @out NVARCHAR(MAX);
             EXEC sp_consultar_factura_y_productosporfactura @p_numero = %s, @p_resultado = @out OUTPUT;
             SELECT @out AS resultado;
         """
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (numero,))
-                    fila = cur.fetchone()
-                    return json.loads(fila["resultado"])
+            return ejecutar_sp_json(sql, (numero,))
         except Exception as ex:
             codigo = extraer_codigo_sql(ex)
-            msg = str(ex)
-            if codigo == 50003 or "no existe" in msg.lower():
+            if codigo == 50003 or "no existe" in str(ex).lower():
                 raise NoEncontradoExcepcion(f"No existe la factura número {numero}.")
             raise
 
     def crear(self, fkidcliente: int, fkidvendedor: int, productos_json: str) -> dict:
-        """
-        Ejecuta 'sp_insertar_factura_y_productosporfactura' pasando el detalle en JSON.
-        Traduce THROW 50001/50002/50010 y 547 (cliente/vendedor/producto inexistente o stock insuficiente) -> 409.
-        """
         sql = """
             DECLARE @out NVARCHAR(MAX);
             EXEC sp_insertar_factura_y_productosporfactura
@@ -129,11 +138,7 @@ class RepositorioFactura:
             SELECT @out AS resultado;
         """
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (fkidcliente, fkidvendedor, productos_json))
-                    fila = cur.fetchone()
-                    return json.loads(fila["resultado"])
+            return ejecutar_sp_json(sql, (fkidcliente, fkidvendedor, productos_json))
         except Exception as ex:
             codigo = extraer_codigo_sql(ex)
             msg = str(ex)
@@ -142,21 +147,13 @@ class RepositorioFactura:
             raise
 
     def anular(self, numero: int) -> dict:
-        """
-        Ejecuta 'sp_anular_factura': cambia el estado a 'anulada' y devuelve las unidades al stock.
-        Si no existe -> 404; si ya estaba anulada -> 409 Conflict.
-        """
         sql = """
             DECLARE @out NVARCHAR(MAX);
             EXEC sp_anular_factura @p_numero = %s, @p_resultado = @out OUTPUT;
             SELECT @out AS resultado;
         """
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (numero,))
-                    fila = cur.fetchone()
-                    return json.loads(fila["resultado"])
+            return ejecutar_sp_json(sql, (numero,))
         except Exception as ex:
             codigo = extraer_codigo_sql(ex)
             msg = str(ex)
@@ -167,24 +164,19 @@ class RepositorioFactura:
             raise
 
 
-class RepositorioRolUsuario:
-    """Repositorio SQL Server para la tabla puente M:N 'rol_usuario' (clave compuesta fkemail + fkidrol)."""
+class RepositorioRolUsuarioSqlServer(IRepositorioRolUsuario):
+    """Implementación SQL Server de la tabla puente M:N 'rol_usuario'."""
 
     def obtener_todos(self) -> list[dict]:
-        """Lista todas las asignaciones usuario-rol haciendo JOIN con 'rol' para mostrar el nombre."""
         sql = """
             SELECT ru.fkemail, ru.fkidrol, r.nombre AS nombre_rol
             FROM rol_usuario ru
             INNER JOIN rol r ON ru.fkidrol = r.id
             ORDER BY ru.fkemail, ru.fkidrol;
         """
-        with obtener_conexion() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql)
-                return normalizar_filas(cur.fetchall())
+        return consultar_filas(sql)
 
     def obtener_por_usuario(self, email: str) -> list[dict]:
-        """Obtiene los roles asignados a un usuario específico."""
         sql = """
             SELECT ru.fkemail, ru.fkidrol, r.nombre AS nombre_rol
             FROM rol_usuario ru
@@ -192,13 +184,9 @@ class RepositorioRolUsuario:
             WHERE ru.fkemail = %s
             ORDER BY ru.fkidrol;
         """
-        with obtener_conexion() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, (email,))
-                return normalizar_filas(cur.fetchall())
+        return consultar_filas(sql, (email,))
 
     def obtener_por_rol(self, idrol: int) -> list[dict]:
-        """Obtiene los usuarios que tienen asignado un rol específico."""
         sql = """
             SELECT ru.fkemail, ru.fkidrol, r.nombre AS nombre_rol
             FROM rol_usuario ru
@@ -206,18 +194,12 @@ class RepositorioRolUsuario:
             WHERE ru.fkidrol = %s
             ORDER BY ru.fkemail;
         """
-        with obtener_conexion() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, (idrol,))
-                return normalizar_filas(cur.fetchall())
+        return consultar_filas(sql, (idrol,))
 
     def crear(self, fkemail: str, fkidrol: int) -> None:
-        """Asocia un usuario y un rol; captura 2627/2601 (pareja duplicada) y 547 (FK inexistente) -> 409."""
         sql = "INSERT INTO rol_usuario (fkemail, fkidrol) VALUES (%s, %s)"
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (fkemail, fkidrol))
+            ejecutar_dml(sql, (fkemail, fkidrol))
         except Exception as ex:
             codigo = extraer_codigo_sql(ex)
             if codigo in (2627, 2601):
@@ -227,108 +209,71 @@ class RepositorioRolUsuario:
             raise
 
     def eliminar(self, fkemail: str, fkidrol: int) -> int:
-        """Elimina la relación por su clave primaria compuesta (email + idrol)."""
         sql = "DELETE FROM rol_usuario WHERE fkemail = %s AND fkidrol = %s"
-        with obtener_conexion() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, (fkemail, fkidrol))
-                return cur.rowcount
+        return ejecutar_dml(sql, (fkemail, fkidrol))
 
 
-class RepositorioRutaRol:
-    """
-    Repositorio de permisos 'rutarol' ejecutado mediante sus 3 Stored Procedures oficiales:
-    listar_rutarol, crear_rutarol y eliminar_rutarol.
-    """
+class RepositorioRutaRolSqlServer(IRepositorioRutaRol):
+    """Implementación SQL Server de IRepositorioRutaRol usando sus 3 Stored Procedures."""
 
     def listar(self) -> list[dict]:
-        """Ejecuta 'listar_rutarol' y deserializa la lista de permisos rol-ruta."""
         sql = """
             DECLARE @out NVARCHAR(MAX);
             EXEC listar_rutarol @p_resultado = @out OUTPUT;
             SELECT @out AS resultado;
         """
-        with obtener_conexion() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql)
-                fila = cur.fetchone()
-                raw_json = fila["resultado"] if fila else "[]"
-                return json.loads(raw_json or "[]")
+        res = ejecutar_sp_json(sql)
+        return res if isinstance(res, list) else []
 
     def crear(self, fkidruta: int, fkidrol: int) -> dict:
-        """Ejecuta 'crear_rutarol'; si 'success' es false en el JSON de salida, lanza ConflictoExcepcion (409)."""
         sql = """
             DECLARE @out NVARCHAR(MAX);
             EXEC crear_rutarol @p_fkidruta = %s, @p_fkidrol = %s, @p_resultado = @out OUTPUT;
             SELECT @out AS resultado;
         """
-        with obtener_conexion() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, (fkidruta, fkidrol))
-                fila = cur.fetchone()
-                res = json.loads(fila["resultado"])
-                if not res.get("success", False):
-                    raise ConflictoExcepcion(res.get("message", "No fue posible crear el permiso."))
-                return res
+        res = ejecutar_sp_json(sql, (fkidruta, fkidrol))
+        if not res.get("success", False):
+            raise ConflictoExcepcion(res.get("message", "No fue posible crear el permiso."))
+        return res
 
     def eliminar(self, fkidruta: int, fkidrol: int) -> dict:
-        """Ejecuta 'eliminar_rutarol'; si el permiso no existe, lanza NoEncontradoExcepcion (404)."""
         sql = """
             DECLARE @out NVARCHAR(MAX);
             EXEC eliminar_rutarol @p_fkidruta = %s, @p_fkidrol = %s, @p_resultado = @out OUTPUT;
             SELECT @out AS resultado;
         """
-        with obtener_conexion() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, (fkidruta, fkidrol))
-                fila = cur.fetchone()
-                res = json.loads(fila["resultado"])
-                if not res.get("success", False):
-                    raise NoEncontradoExcepcion(res.get("message", "El permiso no existe."))
-                return res
+        res = ejecutar_sp_json(sql, (fkidruta, fkidrol))
+        if not res.get("success", False):
+            raise NoEncontradoExcepcion(res.get("message", "El permiso no existe."))
+        return res
 
 
-class RepositorioUsuarioConRoles:
-    """
-    Repositorio compuesto para 'usuario-con-roles'.
-    Ejecuta atómicamente los 5 Stored Procedures oficiales con OPENJSON en SQL Server.
-    """
+class RepositorioUsuarioConRolesSqlServer(IRepositorioUsuarioConRoles):
+    """Implementación SQL Server de IRepositorioUsuarioConRoles (5 Stored Procedures con OPENJSON)."""
 
     def listar(self) -> list[dict]:
-        """Ejecuta 'listar_usuarios_con_roles' devolviendo cada usuario y su arreglo de roles."""
         sql = """
             DECLARE @out NVARCHAR(MAX);
             EXEC listar_usuarios_con_roles @p_resultado = @out OUTPUT;
             SELECT @out AS resultado;
         """
-        with obtener_conexion() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql)
-                fila = cur.fetchone()
-                raw_json = fila["resultado"] if fila else "[]"
-                return json.loads(raw_json or "[]")
+        res = ejecutar_sp_json(sql)
+        return res if isinstance(res, list) else []
 
     def consultar(self, email: str) -> dict:
-        """Ejecuta 'consultar_usuario_con_roles'; captura THROW 50008 -> 404."""
         sql = """
             DECLARE @out NVARCHAR(MAX);
             EXEC consultar_usuario_con_roles @p_email = %s, @p_resultado = @out OUTPUT;
             SELECT @out AS resultado;
         """
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (email,))
-                    fila = cur.fetchone()
-                    return json.loads(fila["resultado"])
+            return ejecutar_sp_json(sql, (email,))
         except Exception as ex:
-            codigo = extraer_codigo_sql(ex)
-            if codigo == 50008 or "no existe" in str(ex).lower():
+            if extraer_codigo_sql(ex) == 50008 or "no existe" in str(ex).lower():
                 raise NoEncontradoExcepcion(f"El usuario '{email}' no existe.")
             raise
 
     def crear(self, email: str, contrasena_hash: str, roles_json: str) -> dict:
-        """Ejecuta 'crear_usuario_con_roles' enviando el arreglo JSON a @p_roles_json (OPENJSON)."""
         sql = """
             DECLARE @out NVARCHAR(MAX);
             EXEC crear_usuario_con_roles
@@ -339,11 +284,7 @@ class RepositorioUsuarioConRoles:
             SELECT @out AS resultado;
         """
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (email, contrasena_hash, roles_json))
-                    fila = cur.fetchone()
-                    return json.loads(fila["resultado"])
+            return ejecutar_sp_json(sql, (email, contrasena_hash, roles_json))
         except Exception as ex:
             codigo = extraer_codigo_sql(ex)
             msg = str(ex)
@@ -354,7 +295,6 @@ class RepositorioUsuarioConRoles:
             raise
 
     def actualizar(self, email: str, contrasena_hash: str | None, roles_json: str) -> dict:
-        """Ejecuta 'actualizar_usuario_con_roles' pasando @p_roles (si @p_contrasena es NULL conserva la clave)."""
         sql = """
             DECLARE @out NVARCHAR(MAX);
             EXEC actualizar_usuario_con_roles
@@ -365,11 +305,7 @@ class RepositorioUsuarioConRoles:
             SELECT @out AS resultado;
         """
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (email, contrasena_hash, roles_json))
-                    fila = cur.fetchone()
-                    return json.loads(fila["resultado"])
+            return ejecutar_sp_json(sql, (email, contrasena_hash, roles_json))
         except Exception as ex:
             codigo = extraer_codigo_sql(ex)
             msg = str(ex)
@@ -380,20 +316,14 @@ class RepositorioUsuarioConRoles:
             raise
 
     def eliminar(self, email: str) -> dict:
-        """Ejecuta 'eliminar_usuario_con_roles'; captura THROW 50006 -> 404."""
         sql = """
             DECLARE @out NVARCHAR(MAX);
             EXEC eliminar_usuario_con_roles @p_email = %s, @p_resultado = @out OUTPUT;
             SELECT @out AS resultado;
         """
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (email,))
-                    fila = cur.fetchone()
-                    return json.loads(fila["resultado"])
+            return ejecutar_sp_json(sql, (email,))
         except Exception as ex:
-            codigo = extraer_codigo_sql(ex)
-            if codigo == 50006 or "no existe" in str(ex).lower():
+            if extraer_codigo_sql(ex) == 50006 or "no existe" in str(ex).lower():
                 raise NoEncontradoExcepcion(f"Usuario '{email}' no existe.")
             raise

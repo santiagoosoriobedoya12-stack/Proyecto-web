@@ -3,7 +3,7 @@
 > **Asignatura:** Aplicación y Servicios Web  
 > **Proyecto:** Sistema Integral de Facturación Empresarial (`bdfacturas`)  
 > **Autor:** Santiago Osorio Bedoya  
-> **Arquitectura:** Python 3.12 (FastAPI + PyMSSQL + PyJWT + BCrypt) · Frontend Python (FastAPI + Jinja2 + httpx + Bootstrap local) · SQL Server 2022 · Docker Compose  
+> **Arquitectura:** Python 3.12 (FastAPI + PyMSSQL + PyJWT + BCrypt) · Frontend Python (Flask + Jinja2 + httpx + Bootstrap local) · SQL Server 2022 · Docker Compose  
 > **Metodología:** Desarrollo Incremental Acumulativo ($v1 \subset v2 \subset v3$)
 
 ---
@@ -48,9 +48,10 @@ Construir los cimientos arquitectónicos del sistema operando las **6 tablas ind
 
 #### 2. Principios de Diseño Clave en Python:
 - **Separación estricta en 3 Capas (`api_python/`):**
-  - **Router (`routers/router_v1.py`):** Solo entiende de HTTP (verbos FastAPI `@router.get`, `@router.post`, códigos `200`, `201`, `400`, `404`, `409`, `422`, `500` y respuestas JSON).
-  - **Servicio (`servicios/servicio_v1.py`):** Contiene las reglas del dominio puro (`ServicioProducto`, `ServicioPersona`, etc.). **No conoce HTTP ni `pymssql`**. Si falla una regla, lanza excepciones de dominio (`NoEncontradoExcepcion`, `ValidacionNegocioExcepcion`, `ConflictoExcepcion`).
-  - **Repositorio (`repositorios/repositorio_v1.py`):** Ejecuta SQL escrito a mano contra SQL Server mediante **PyMSSQL** con consultas parametrizadas (`%s`). No conoce reglas de negocio ni HTTP.
+  - **Controlador (`controladores/controlador_v1.py`):** Solo entiende de HTTP (verbos FastAPI `@router.get`, `@router.post`, códigos `200`, `201`, `400`, `404`, `409`, `422`, `500` y respuestas JSON). Recibe servicios ensamblados en `ensamblador.py`.
+  - **Modelos (`modelos/entidades.py`):** Clases POO tipadas de dominio (`Producto`, `Cliente`, `Factura`, `Sesion`, etc.).
+  - **Servicio (`servicios/servicio_v1.py`):** Contiene las reglas del dominio puro (`ServicioProducto`, `ServicioPersona`, etc.) recibiendo la interfaz `IRepositorio*` por constructor. **No conoce HTTP ni `pymssql`**. Si falla una regla, lanza excepciones de dominio (`NoEncontradoExcepcion`, `ValidacionNegocioExcepcion`, `ConflictoExcepcion`).
+  - **Repositorio (`repositorios/repositorio_v1.py`):** Implementa `IRepositorio*` (`ABC`) ejecutando SQL escrito a mano contra SQL Server mediante **PyMSSQL** con consultas parametrizadas (`%s`). No conoce reglas de negocio ni HTTP.
 - **Segregación de Peticiones (3 esquemas Pydantic por recurso en `api_python/peticiones/esquemas.py`):**
   - `*Crear`: Campos obligatorios para `POST` $\rightarrow$ `201 Created`.
   - `*Reemplazo`: Reemplazo total idempotente para `PUT` $\rightarrow$ `200 OK` o `422` si falta un campo requerido.
@@ -78,8 +79,8 @@ Completar las **12 tablas** del modelo introduciendo dependencias entre filas (`
   - Borrado lógico contable: `DELETE /api/factura/{numero}` ejecuta `sp_anular_factura` estableciendo `estado = 'anulada'` y restituyendo inventario.
 - **Usuario con Roles mediante `OPENJSON`:**
   - `ServicioUsuarioConRoles` transforma `[1, 2]` en JSON `[{"fkidrol": 1}, {"fkidrol": 2}]`, hashea la contraseña nueva con BCrypt costo 12 y llama los SPs `crear_usuario_con_roles` (`@p_roles_json`) y `actualizar_usuario_con_roles` (`@p_roles`).
-- **Concurrencia en `front_python/`:**
-  - Carga paralela con `asyncio.gather(...)` para poblar simultáneamente desplegables de personas, empresas, clientes y vendedores.
+- **Concurrencia en `front_python/` (Flask):**
+  - Carga paralela con `ThreadPoolExecutor` en `front_python/app.py` para poblar simultáneamente desplegables de personas, empresas, clientes y vendedores sin sumar latencias.
 
 ---
 
@@ -92,7 +93,7 @@ Proteger los 12 recursos de las versiones anteriores exigiendo autenticación e 
 1. **Contraseña con Hash (`bcrypt` costo 12):**
    - Salt aleatoria por usuario y costo computacional 12 (`$2a$12$` / `$2b$12$`), impidiendo ataques por tablas arcoíris y fuerza bruta.
 2. **Sesión sin Estado (`PyJWT` HS256):**
-   - Endpoint público `POST /api/sesion` (`router_sesion.py`).
+   - Endpoint público `POST /api/sesion` (`controlador_sesion.py`).
    - Devuelve el **mismo error 401** tanto para correo inexistente como para contraseña errónea, evitando enumeración de usuarios.
    - El token solo transporta `sub` (email) y `roles`, **nunca guarda permisos de rutas**.
 3. **Autorización Dinámica RBAC (`verificar_acceso_ruta`):**
@@ -123,8 +124,8 @@ Estas son las 10 preguntas clave que un docente evaluador suele hacer en la defe
 ### 5. ¿Por qué al emitir facturas no enviamos precios ni totales desde el front ni desde Python?
 > **Respuesta:** Para garantizar integridad contable y evitar manipulación de precios o condiciones de carrera en inventario. El procedimiento almacenado y el trigger `trg_actualizar_totales_y_stock` leen el precio oficial desde `producto`, validan inventario y actualizan totales dentro de una transacción atómica en SQL Server.
 
-### 6. ¿Por qué en `front_python/` usamos `asyncio.gather` con `httpx`?
-> **Respuesta:** Porque cargar múltiples catálogos de forma secuencial suma las latencias de cada petición HTTP. Con `asyncio.gather`, todas las consultas viajan concurrentemente en paralelo dentro del event loop de Python.
+### 6. ¿Por qué en `front_python/` usamos `ThreadPoolExecutor` con `httpx`?
+> **Respuesta:** Porque cargar múltiples catálogos de forma secuencial suma las latencias de cada petición HTTP. Con `ThreadPoolExecutor`, las consultas viajan concurrentemente en paralelo mientras Flask renderiza la vista HTML.
 
 ### 7. ¿Por qué usamos BCrypt (costo 12) en vez de SHA-256 para las contraseñas?
 > **Respuesta:** SHA-256 está diseñado para máxima velocidad, lo que facilita ataques por fuerza bruta en GPU. BCrypt añade una *salt* aleatoria automática y un factor de costo configurable (`rounds=12`) que hace deliberadamente costoso probar contraseñas.

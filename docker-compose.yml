@@ -1,84 +1,79 @@
 # ==============================================================
 # Proyecto Aplicación y Servicios Web — Stack 100% Python (v1 ⊂ v2 ⊂ v3)
 #
-#   Navegador → FRONT PYTHON (FastAPI + Jinja2, :8099) → API PYTHON (FastAPI, :8035) → SQL Server (bdfacturas)
+#   Navegador → FRONT FLASK (Flask + Jinja2, :8099) → API FASTAPI (FastAPI, :8035) → SQL Server (bdfacturas)
 #
-# Uso: docker compose up -d --build     (UN solo comando)
-# Reset de la BD: docker compose down -v && docker compose up -d --build
+# Uso: docker compose up -d --build
+# Secretos: lee variables desde .env (ver .env.example) con valores locales de desarrollo.
 # ==============================================================
 services:
 
-  # --- SQL Server 2022 (requiere ~2 GB de RAM) ---
+  # --- SQL Server 2022 ---
   sqlserver:
-    restart: unless-stopped   # si el PC se reinicia, este servicio revive con Docker
+    restart: unless-stopped
     image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
-      ACCEPT_EULA: "Y"                       # aceptar la licencia (obligatorio)
-      MSSQL_SA_PASSWORD: "Paradigmas123!"    # clave del superusuario 'sa'
-      MSSQL_PID: Developer                   # edición gratuita para desarrollo
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-Paradigmas123!}"
+      MSSQL_PID: Developer
     volumes:
-      - mssqldata:/var/opt/mssql             # los datos sobreviven a `down`
+      - mssqldata:/var/opt/mssql
     ports:
-      - "11463:1433"     # puerto en su PC (para SQLTools/SSMS opcional)
+      - "11463:1433"
     healthcheck:
-      # ¿La BD ya RESPONDE consultas? (no solo "el contenedor existe")
       test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' -b"]
       interval: 10s
       timeout: 10s
       retries: 20
-      start_period: 30s    # margen de gracia: SQL Server tarda en arrancar
+      start_period: 30s
 
   # --- Inicializador (crea bdfacturas la primera vez y termina) ---
   sqlserver-init:
     image: mcr.microsoft.com/mssql/server:2022-latest
     depends_on:
       sqlserver:
-        condition: service_healthy     # espera a que el motor RESPONDA
+        condition: service_healthy
     environment:
-      MSSQL_SA_PASSWORD: "Paradigmas123!"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-Paradigmas123!}"
     volumes:
-      - ./db:/scripts:ro               # init.sh y bdfacturas.sql, solo lectura
+      - ./db:/scripts:ro
     entrypoint: ["/bin/bash", "/scripts/init.sh"]
-    restart: "no"                      # corre una vez; no revive
+    restart: "no"
 
   # --- API Facturas en Python (FastAPI + PyMSSQL + PyJWT + BCrypt) ---
   api-facturas:
     build: ./api_python
     container_name: facturas-api-python
     volumes:
-      - ./api_python:/app      # el código montado: uvicorn --reload recompila/recarga solo al guardar .py
+      - ./api_python:/app
     restart: unless-stopped
     ports:
-      - "8035:8032"              # http://localhost:8035 (oficial)
-      - "8032:8032"              # http://localhost:8032 (retrocompatibilidad)
+      - "8035:8032"
+      - "8032:8032"
     environment:
-      ConnectionStrings__SqlServer: "Server=sqlserver,1433;Database=bdfacturas_sqlserver_local;User Id=sa;Password=Paradigmas123!;TrustServerCertificate=True;"
-      Jwt__Key: "SuperClaveSecretaUltraSeguraParaFirmarJwtDeFacturas2026*"
-      Jwt__Issuer: "ApiFacturas"
-      Jwt__Audience: "FrontFacturas"
-      Jwt__ExpiracionHoras: "1"
+      ConnectionStrings__SqlServer: "Server=${DB_HOST:-sqlserver},${DB_PORT:-1433};Database=${DB_NAME:-bdfacturas_sqlserver_local};User Id=${DB_USER:-sa};Password=${MSSQL_SA_PASSWORD:-Paradigmas123!};TrustServerCertificate=True;"
+      Jwt__Key: "${JWT_KEY:-SuperClaveSecretaUltraSeguraParaFirmarJwtDeFacturas2026*}"
+      Jwt__Issuer: "${JWT_ISSUER:-ApiFacturas}"
+      Jwt__Audience: "${JWT_AUDIENCE:-FrontFacturas}"
+      Jwt__ExpiracionHoras: "${JWT_EXPIRACION_HORAS:-1}"
     depends_on:
       sqlserver-init:
         condition: service_completed_successfully
-        # ↑ la API arranca cuando el inicializador TERMINÓ BIEN:
-        #   la BD ya existe con sus 12 tablas, SPs, triggers y datos.
 
-  # --- Interfaz Gráfica en Python (FastAPI + Jinja2 + Bootstrap local) ---
+  # --- Interfaz Gráfica en Python (Flask + Jinja2 + Bootstrap local) ---
   front-python:
     build: ./front_python
     container_name: facturas-front-python
     ports:
-      - "8099:8096"              # http://localhost:8099 (oficial)
-      - "8096:8096"              # http://localhost:8096 (retrocompatibilidad)
+      - "8099:8096"
+      - "8096:8096"
     volumes:
-      - ./front_python:/app      # uvicorn --reload recarga cambios en HTML/Python al instante
+      - ./front_python:/app
     environment:
-      # El NOMBRE del servicio en Docker, no localhost: dentro del contenedor del front,
-      # localhost sería el front mismo.
-      UrlApi: "http://api-facturas:8032"
+      # El front NO recibe credenciales de SQL Server: solo conoce la URL HTTP de la API.
+      UrlApi: "${URL_API:-http://api-facturas:8032}"
     depends_on:
-      # NO depende de la base de datos: el front solo habla HTTP con api-facturas.
       - api-facturas
 
 volumes:
-  mssqldata:      # declaración del volumen nombrado (la "memoria" de la BD)
+  mssqldata:

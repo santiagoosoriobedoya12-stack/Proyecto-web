@@ -22,9 +22,10 @@ En la **Versión 1**, el objetivo fue construir los cimientos arquitectónicos d
 ## 2. Decisiones Clave de Arquitectura en Python
 
 - **Separación Estricta de Responsabilidades (`api_python/`):**
-  - **Router (`routers/router_v1.py`):** Solo conoce HTTP (verbos FastAPI, códigos de estado `200`, `201`, `204`, `400`, `404`, `409`, `422`, `500`), serialización JSON y rutas.
-  - **Servicio de Dominio (`servicios/servicio_v1.py`):** Contiene las reglas del negocio puro (validaciones de clave, hash de contraseña). **No conoce HTTP**. Si ocurre un fallo de negocio, lanza excepciones de dominio (`NoEncontradoExcepcion`, `ValidacionNegocioExcepcion`, `ConflictoExcepcion`).
-  - **Repositorio (`repositorios/repositorio_v1.py`):** Encapsula el acceso a datos mediante **PyMSSQL** y consultas SQL parametrizadas explícitas (`%s`). **No conoce reglas ni HTTP**.
+  - **Controlador (`controladores/controlador_v1.py`):** Solo conoce HTTP (verbos FastAPI, códigos de estado `200`, `201`, `204`, `400`, `404`, `409`, `422`, `500`), serialización JSON y rutas.
+  - **Modelos (`modelos/entidades.py`):** Clases POO tipadas para las entidades del dominio.
+  - **Servicio de Dominio (`servicios/servicio_v1.py`):** Contiene las reglas del negocio puro recibiendo `IRepositorio*` por constructor. **No conoce HTTP**. Si ocurre un fallo de negocio, lanza excepciones de dominio (`NoEncontradoExcepcion`, `ValidacionNegocioExcepcion`, `ConflictoExcepcion`).
+  - **Repositorio (`repositorios/repositorio_v1.py`):** Implementa `IRepositorio*` (`ABC`) encapsulando el acceso a datos mediante **PyMSSQL** y SQL parametrizado explícito (`%s`). **No conoce reglas ni HTTP**.
 - **Tres Esquemas Pydantic por Recurso (`peticiones/esquemas.py`):**
   - `*Crear`: Campos obligatorios para creación (`POST` → `201 Created`).
   - `*Reemplazo`: Reemplazo total idempotente (`PUT` → `200` / `422` si falta algún campo).
@@ -38,8 +39,8 @@ En la **Versión 1**, el objetivo fue construir los cimientos arquitectónicos d
   }
   ```
 - **Frontend Python Independiente (`front_python/`):**
-  - Vistas Jinja2 servidas por FastAPI (`templates/crud_generico.html`) sin `pymssql`.
-  - Consumo HTTP asíncrono centralizado en `front_python/servicios/cliente_api.py` mediante `httpx`.
+  - Vistas Jinja2 servidas por **Flask** (`front_python/app.py`, `templates/crud_recurso.html`) sin `pymssql`.
+  - Consumo HTTP con funciones explícitas por operación en `front_python/servicios/servicios_recursos.py` vía `httpx`.
   - Resiliencia ante caídas de la API (alerta visual y conteo en 0 sin colapsar la interfaz).
 
 ---

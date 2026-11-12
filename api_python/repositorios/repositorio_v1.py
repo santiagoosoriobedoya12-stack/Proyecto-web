@@ -1,208 +1,250 @@
 # ==============================================================
 # REPOSITORIOS VERSIÓN 1: LAS 6 TABLAS INDEPENDIENTES (SIN FK)
-# Reglas arquitectónicas:
-# - SQL explícito y a la vista, siempre parametrizado con '%s' (jamás f-strings con valores).
-# - Lista blanca de columnas permitidas en PATCH para evitar inyección SQL.
-# - Captura errores de SQL Server (2627/2601 duplicados, 547 FK si un padre tiene hijos) -> ConflictoExcepcion (409).
-# - En RepositorioUsuario, los SELECT jamás devuelven la columna 'contrasena' (seguridad v3).
+# - Cada clase implementa explícitamente su interfaz ABC (IRepositorio*).
+# - Todo el SQL está explícito y parametrizado con '%s' en cada repositorio.
+# - Las actualizaciones parciales (PATCH) validan cada columna contra una lista blanca.
+# - Errores 2627/2601 (duplicado) y 547 (padre con hijos) -> ConflictoExcepcion (409).
+# - RepositorioUsuarioSqlServer jamás incluye la columna 'contrasena' en consultas CRUD.
 # ==============================================================
 
-from database import obtener_conexion, extraer_codigo_sql, normalizar_fila, normalizar_filas
-from excepciones import ConflictoExcepcion, NoEncontradoExcepcion
+from database import (
+    consultar_filas,
+    consultar_fila,
+    ejecutar_dml,
+    ejecutar_insert_identity,
+    extraer_codigo_sql,
+)
+from excepciones import ConflictoExcepcion
+from repositorios.interfaces import (
+    IRepositorioProducto,
+    IRepositorioEmpresa,
+    IRepositorioPersona,
+    IRepositorioRol,
+    IRepositorioRuta,
+    IRepositorioUsuario,
+)
 
 
-class RepositorioTablaBase:
+def ejecutar_update_whitelist(
+    tabla: str,
+    columna_pk: str,
+    clave,
+    datos: dict,
+    columnas_permitidas: set[str],
+) -> int:
     """
-    Clase base reutilizable para repositorios CRUD con SQL parametrizado en SQL Server.
-    Evita duplicar lógica idéntica de SELECT / INSERT / PATCH / DELETE manteniendo el SQL explícito.
+    Construye una sentencia UPDATE parametrizada verificando cada nombre de columna
+    contra una lista blanca fija para impedir inyección SQL en nombres de campo.
     """
-    tabla: str = ""
-    columna_pk: str = ""
-    columnas_select: str = ""
-    columnas_insert: tuple[str, ...] = ()
-    columnas_patch: set[str] = set()
-    orden_por: str = ""
+    if not datos:
+        return 0
+    clausulas_set = []
+    valores = []
+    for col, val in datos.items():
+        col_lower = col.lower()
+        if col_lower in columnas_permitidas:
+            clausulas_set.append(f"{col_lower} = %s")
+            valores.append(val)
+    if not clausulas_set:
+        return 0
+    valores.append(clave)
+    sql = f"UPDATE {tabla} SET {', '.join(clausulas_set)} WHERE {columna_pk} = %s"
+    try:
+        return ejecutar_dml(sql, tuple(valores))
+    except Exception as ex:
+        codigo = extraer_codigo_sql(ex)
+        if codigo in (2627, 2601):
+            raise ConflictoExcepcion(f"Ya existe un registro duplicado en '{tabla}'.")
+        if codigo == 547:
+            raise ConflictoExcepcion(f"Conflicto de integridad referencial en '{tabla}'.")
+        raise
+
+
+def ejecutar_delete_protegido(sql: str, clave, tabla: str) -> int:
+    """Ejecuta DELETE parametrizado y traduce el error SQL 547 a ConflictoExcepcion (409)."""
+    try:
+        return ejecutar_dml(sql, (clave,))
+    except Exception as ex:
+        if extraer_codigo_sql(ex) == 547:
+            raise ConflictoExcepcion(
+                f"No se puede eliminar de '{tabla}' porque tiene registros asociados (clave foránea)."
+            )
+        raise
+
+
+class RepositorioProductoSqlServer(IRepositorioProducto):
+    """Implementación SQL Server explícita de IRepositorioProducto."""
+
+    _PATCH_PERMITIDOS = {"nombre", "stock", "valorunitario"}
 
     def obtener_todos(self, limite: int) -> list[dict]:
-        """Consulta TOP (%s) registros ordenados por clave primaria."""
-        sql = f"SELECT TOP (%s) {self.columnas_select} FROM {self.tabla} ORDER BY {self.orden_por or self.columna_pk}"
-        with obtener_conexion() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, (limite,))
-                return normalizar_filas(cur.fetchall())
+        sql = "SELECT TOP (%s) codigo, nombre, stock, valorunitario FROM producto ORDER BY codigo"
+        return consultar_filas(sql, (limite,))
 
-    def obtener_por_clave(self, clave) -> dict | None:
-        """Busca un único registro por su clave primaria (retorna None si no existe)."""
-        sql = f"SELECT {self.columnas_select} FROM {self.tabla} WHERE {self.columna_pk} = %s"
-        with obtener_conexion() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, (clave,))
-                return normalizar_fila(cur.fetchone())
-
-    def actualizar_parcial(self, clave, datos: dict) -> int:
-        """
-        Construye UPDATE dinámico validando cada columna contra la lista blanca 'columnas_patch'.
-        Devuelve el conteo de filas modificadas en SQL Server.
-        """
-        if not datos:
-            return 0
-        clausulas_set = []
-        valores = []
-        for col, val in datos.items():
-            col_lower = col.lower()
-            if col_lower in self.columnas_patch:
-                clausulas_set.append(f"{col_lower} = %s")
-                valores.append(val)
-        if not clausulas_set:
-            return 0
-        valores.append(clave)
-        sql = f"UPDATE {self.tabla} SET {', '.join(clausulas_set)} WHERE {self.columna_pk} = %s"
-        try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, tuple(valores))
-                    return cur.rowcount
-        except Exception as ex:
-            codigo = extraer_codigo_sql(ex)
-            if codigo in (2627, 2601):
-                raise ConflictoExcepcion(f"Ya existe un registro duplicado en '{self.tabla}'.")
-            if codigo == 547:
-                raise ConflictoExcepcion(f"Conflicto de integridad referencial en '{self.tabla}'.")
-            raise
-
-    def eliminar(self, clave) -> int:
-        """Elimina físicamente un registro por clave primaria; captura error 547 si tiene registros hijos."""
-        sql = f"DELETE FROM {self.tabla} WHERE {self.columna_pk} = %s"
-        try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (clave,))
-                    return cur.rowcount
-        except Exception as ex:
-            if extraer_codigo_sql(ex) == 547:
-                raise ConflictoExcepcion(
-                    f"No se puede eliminar de '{self.tabla}' porque tiene registros asociados (clave foránea)."
-                )
-            raise
-
-
-class RepositorioProducto(RepositorioTablaBase):
-    """Repositorio SQL Server para 'producto' (PK string 'codigo')."""
-    tabla = "producto"
-    columna_pk = "codigo"
-    columnas_select = "codigo, nombre, stock, valorunitario"
-    columnas_patch = {"nombre", "stock", "valorunitario"}
+    def obtener_por_clave(self, codigo: str) -> dict | None:
+        sql = "SELECT codigo, nombre, stock, valorunitario FROM producto WHERE codigo = %s"
+        return consultar_fila(sql, (codigo,))
 
     def crear(self, codigo: str, nombre: str, stock: int, valorunitario: float) -> None:
-        """Inserta un nuevo producto; lanza ConflictoExcepcion (409) si el código ya existe."""
         sql = "INSERT INTO producto (codigo, nombre, stock, valorunitario) VALUES (%s, %s, %s, %s)"
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (codigo, nombre, stock, valorunitario))
+            ejecutar_dml(sql, (codigo, nombre, stock, valorunitario))
         except Exception as ex:
             if extraer_codigo_sql(ex) in (2627, 2601):
                 raise ConflictoExcepcion(f"Ya existe un producto con codigo '{codigo}'.")
             raise
 
+    def actualizar_parcial(self, codigo: str, datos: dict) -> int:
+        return ejecutar_update_whitelist("producto", "codigo", codigo, datos, self._PATCH_PERMITIDOS)
 
-class RepositorioEmpresa(RepositorioTablaBase):
-    """Repositorio SQL Server para 'empresa' (PK string 'codigo')."""
-    tabla = "empresa"
-    columna_pk = "codigo"
-    columnas_select = "codigo, nombre"
-    columnas_patch = {"nombre"}
+    def eliminar(self, codigo: str) -> int:
+        sql = "DELETE FROM producto WHERE codigo = %s"
+        return ejecutar_delete_protegido(sql, codigo, "producto")
+
+
+class RepositorioEmpresaSqlServer(IRepositorioEmpresa):
+    """Implementación SQL Server explícita de IRepositorioEmpresa."""
+
+    _PATCH_PERMITIDOS = {"nombre"}
+
+    def obtener_todos(self, limite: int) -> list[dict]:
+        sql = "SELECT TOP (%s) codigo, nombre FROM empresa ORDER BY codigo"
+        return consultar_filas(sql, (limite,))
+
+    def obtener_por_clave(self, codigo: str) -> dict | None:
+        sql = "SELECT codigo, nombre FROM empresa WHERE codigo = %s"
+        return consultar_fila(sql, (codigo,))
 
     def crear(self, codigo: str, nombre: str) -> None:
-        """Inserta una nueva empresa; lanza 409 si el código está duplicado."""
         sql = "INSERT INTO empresa (codigo, nombre) VALUES (%s, %s)"
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (codigo, nombre))
+            ejecutar_dml(sql, (codigo, nombre))
         except Exception as ex:
             if extraer_codigo_sql(ex) in (2627, 2601):
                 raise ConflictoExcepcion(f"Ya existe una empresa con codigo '{codigo}'.")
             raise
 
+    def actualizar_parcial(self, codigo: str, datos: dict) -> int:
+        return ejecutar_update_whitelist("empresa", "codigo", codigo, datos, self._PATCH_PERMITIDOS)
 
-class RepositorioPersona(RepositorioTablaBase):
-    """Repositorio SQL Server para 'persona' (PK string 'codigo')."""
-    tabla = "persona"
-    columna_pk = "codigo"
-    columnas_select = "codigo, nombre, email, telefono"
-    columnas_patch = {"nombre", "email", "telefono"}
+    def eliminar(self, codigo: str) -> int:
+        sql = "DELETE FROM empresa WHERE codigo = %s"
+        return ejecutar_delete_protegido(sql, codigo, "empresa")
+
+
+class RepositorioPersonaSqlServer(IRepositorioPersona):
+    """Implementación SQL Server explícita de IRepositorioPersona."""
+
+    _PATCH_PERMITIDOS = {"nombre", "email", "telefono"}
+
+    def obtener_todos(self, limite: int) -> list[dict]:
+        sql = "SELECT TOP (%s) codigo, nombre, email, telefono FROM persona ORDER BY codigo"
+        return consultar_filas(sql, (limite,))
+
+    def obtener_por_clave(self, codigo: str) -> dict | None:
+        sql = "SELECT codigo, nombre, email, telefono FROM persona WHERE codigo = %s"
+        return consultar_fila(sql, (codigo,))
 
     def crear(self, codigo: str, nombre: str, email: str, telefono: str) -> None:
-        """Inserta una persona; lanza 409 si el código está duplicado."""
         sql = "INSERT INTO persona (codigo, nombre, email, telefono) VALUES (%s, %s, %s, %s)"
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (codigo, nombre, email, telefono))
+            ejecutar_dml(sql, (codigo, nombre, email, telefono))
         except Exception as ex:
             if extraer_codigo_sql(ex) in (2627, 2601):
                 raise ConflictoExcepcion(f"Ya existe una persona con codigo '{codigo}'.")
             raise
 
+    def actualizar_parcial(self, codigo: str, datos: dict) -> int:
+        return ejecutar_update_whitelist("persona", "codigo", codigo, datos, self._PATCH_PERMITIDOS)
 
-class RepositorioRol(RepositorioTablaBase):
-    """Repositorio SQL Server para 'rol' (PK autoincremental IDENTITY 'id')."""
-    tabla = "rol"
-    columna_pk = "id"
-    columnas_select = "id, nombre"
-    columnas_patch = {"nombre"}
+    def eliminar(self, codigo: str) -> int:
+        sql = "DELETE FROM persona WHERE codigo = %s"
+        return ejecutar_delete_protegido(sql, codigo, "persona")
+
+
+class RepositorioRolSqlServer(IRepositorioRol):
+    """Implementación SQL Server explícita de IRepositorioRol."""
+
+    _PATCH_PERMITIDOS = {"nombre"}
+
+    def obtener_todos(self, limite: int) -> list[dict]:
+        sql = "SELECT TOP (%s) id, nombre FROM rol ORDER BY id"
+        return consultar_filas(sql, (limite,))
+
+    def obtener_por_clave(self, id_rol: int) -> dict | None:
+        sql = "SELECT id, nombre FROM rol WHERE id = %s"
+        return consultar_fila(sql, (id_rol,))
 
     def crear(self, nombre: str) -> int:
-        """Inserta un rol y recupera el ID recién generado mediante SCOPE_IDENTITY()."""
         sql = "INSERT INTO rol (nombre) VALUES (%s); SELECT CAST(SCOPE_IDENTITY() AS INT) AS nuevo_id;"
-        with obtener_conexion() as conn:
-            with conn.cursor() as cur:
-                cur.execute(sql, (nombre,))
-                fila = cur.fetchone()
-                return int(fila["nuevo_id"])
+        return ejecutar_insert_identity(sql, (nombre,))
+
+    def actualizar_parcial(self, id_rol: int, datos: dict) -> int:
+        return ejecutar_update_whitelist("rol", "id", id_rol, datos, self._PATCH_PERMITIDOS)
+
+    def eliminar(self, id_rol: int) -> int:
+        sql = "DELETE FROM rol WHERE id = %s"
+        return ejecutar_delete_protegido(sql, id_rol, "rol")
 
 
-class RepositorioRuta(RepositorioTablaBase):
-    """Repositorio SQL Server para 'ruta' (PK IDENTITY 'id' y restricción UNIQUE en 'ruta')."""
-    tabla = "ruta"
-    columna_pk = "id"
-    columnas_select = "id, ruta, descripcion"
-    columnas_patch = {"ruta", "descripcion"}
+class RepositorioRutaSqlServer(IRepositorioRuta):
+    """Implementación SQL Server explícita de IRepositorioRuta."""
+
+    _PATCH_PERMITIDOS = {"ruta", "descripcion"}
+
+    def obtener_todos(self, limite: int) -> list[dict]:
+        sql = "SELECT TOP (%s) id, ruta, descripcion FROM ruta ORDER BY id"
+        return consultar_filas(sql, (limite,))
+
+    def obtener_por_clave(self, id_ruta: int) -> dict | None:
+        sql = "SELECT id, ruta, descripcion FROM ruta WHERE id = %s"
+        return consultar_fila(sql, (id_ruta,))
 
     def crear(self, ruta: str, descripcion: str) -> int:
-        """Inserta una ruta protegible y devuelve su ID; lanza 409 si el patrón 'ruta' ya existe."""
         sql = "INSERT INTO ruta (ruta, descripcion) VALUES (%s, %s); SELECT CAST(SCOPE_IDENTITY() AS INT) AS nuevo_id;"
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (ruta, descripcion))
-                    fila = cur.fetchone()
-                    return int(fila["nuevo_id"])
+            return ejecutar_insert_identity(sql, (ruta, descripcion))
         except Exception as ex:
             if extraer_codigo_sql(ex) in (2627, 2601):
                 raise ConflictoExcepcion(f"Ya existe una ruta registrada con el patrón '{ruta}'.")
             raise
 
+    def actualizar_parcial(self, id_ruta: int, datos: dict) -> int:
+        return ejecutar_update_whitelist("ruta", "id", id_ruta, datos, self._PATCH_PERMITIDOS)
 
-class RepositorioUsuario(RepositorioTablaBase):
+    def eliminar(self, id_ruta: int) -> int:
+        sql = "DELETE FROM ruta WHERE id = %s"
+        return ejecutar_delete_protegido(sql, id_ruta, "ruta")
+
+
+class RepositorioUsuarioSqlServer(IRepositorioUsuario):
     """
-    Repositorio SQL Server para 'usuario' (PK string 'email').
-    REGLA v3: 'columnas_select' solo incluye 'email'; jamás retorna la columna 'contrasena'.
+    Implementación SQL Server explícita de IRepositorioUsuario.
+    REGLA v3: Nunca selecciona la columna 'contrasena' en operaciones de lectura CRUD.
     """
-    tabla = "usuario"
-    columna_pk = "email"
-    columnas_select = "email"
-    columnas_patch = {"contrasena"}
+
+    _PATCH_PERMITIDOS = {"contrasena"}
+
+    def obtener_todos(self, limite: int) -> list[dict]:
+        sql = "SELECT TOP (%s) email FROM usuario ORDER BY email"
+        return consultar_filas(sql, (limite,))
+
+    def obtener_por_clave(self, email: str) -> dict | None:
+        sql = "SELECT email FROM usuario WHERE email = %s"
+        return consultar_fila(sql, (email,))
 
     def crear(self, email: str, contrasena_hash: str) -> None:
-        """Inserta un usuario guardando el hash BCrypt en 'contrasena'."""
         sql = "INSERT INTO usuario (email, contrasena) VALUES (%s, %s)"
         try:
-            with obtener_conexion() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(sql, (email, contrasena_hash))
+            ejecutar_dml(sql, (email, contrasena_hash))
         except Exception as ex:
             if extraer_codigo_sql(ex) in (2627, 2601):
                 raise ConflictoExcepcion(f"Ya existe un usuario con email '{email}'.")
             raise
+
+    def actualizar_parcial(self, email: str, datos: dict) -> int:
+        return ejecutar_update_whitelist("usuario", "email", email, datos, self._PATCH_PERMITIDOS)
+
+    def eliminar(self, email: str) -> int:
+        sql = "DELETE FROM usuario WHERE email = %s"
+        return ejecutar_delete_protegido(sql, email, "usuario")

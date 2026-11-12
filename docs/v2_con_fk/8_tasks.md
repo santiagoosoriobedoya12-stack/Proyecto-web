@@ -24,7 +24,7 @@
   - `ClienteCrear`, `ClienteReemplazo`, `ClienteActualizar` en `api_python/peticiones/esquemas.py` (`credito`, `fkcodpersona`, `fkcodempresa` opcional).
 - [x] **Capa de datos, servicio y router de `cliente`:**
   - `RepositorioCliente` en `api_python/repositorios/repositorio_v2.py` (`JOIN` con `persona` y `empresa`, captura error SQL `547` → `ConflictoExcepcion`).
-  - `ServicioCliente` en `api_python/servicios/servicio_v2.py` y rutas `/api/cliente` en `api_python/routers/router_v2.py`.
+  - `ServicioCliente` en `api_python/servicios/servicio_v2.py` y rutas `/api/cliente` en `api_python/controladores/controlador_v2.py`.
 - [x] **Esquemas, repositorio, servicio y router de `vendedor`:**
   - `VendedorCrear`, `VendedorReemplazo`, `VendedorActualizar`.
   - `RepositorioVendedor`, `ServicioVendedor` y rutas `/api/vendedor`.
@@ -41,7 +41,7 @@
   - Ejecución directa de `sp_listar_facturas_y_productosporfactura`, `sp_consultar_factura_y_productosporfactura`, `sp_insertar_factura_y_productosporfactura` (pasando JSON de detalle) y `sp_anular_factura`.
   - Ninguna sentencia `INSERT INTO factura` ni cálculo aritmético manual de totales en Python.
 - [x] **Servicio y Router:**
-  - `ServicioFactura` y endpoints `/api/factura` en `router_v2.py`.
+  - `ServicioFactura` y endpoints `/api/factura` en `controlador_v2.py`.
   - Regla de stock insuficiente controlada por la base de datos y traducida a `409` (`ConflictoExcepcion`).
   - Anulación mediante `DELETE /api/factura/{numero}` ejecutando `sp_anular_factura` (borrado lógico `estado = 'anulada'`).
 
@@ -50,7 +50,7 @@
 ## Fase 3 — Tablas Puente M:N (`rol_usuario` y `rutarol`)
 - [x] **Recurso `rol_usuario` (`/api/rol-usuario`):**
   - Esquema `RolUsuarioCrear` en `api_python/peticiones/esquemas.py`.
-  - `RepositorioRolUsuario`, `ServicioRolUsuario` y rutas en `router_v2.py`:
+  - `RepositorioRolUsuario`, `ServicioRolUsuario` y rutas en `controlador_v2.py`:
     - `GET /api/rol-usuario`, `GET /api/rol-usuario/usuario/{email}`, `GET /api/rol-usuario/rol/{idrol}`.
     - `POST /api/rol-usuario` (`409` si duplicado o FK inexistente).
     - `DELETE /api/rol-usuario/{email}/{idrol}` (borrado por clave compuesta).
@@ -70,7 +70,7 @@
   - Invoca los 5 SPs (`listar_usuarios_con_roles`, `consultar_usuario_con_roles`, `crear_usuario_con_roles` con `@p_roles_json`, `actualizar_usuario_con_roles` con `@p_roles`, `eliminar_usuario_con_roles`).
 - [x] **Servicio y Router:**
   - `ServicioUsuarioConRoles`: transforma la lista `[1, 2]` en JSON `[{"fkidrol": 1}, {"fkidrol": 2}]` compatible con `OPENJSON` en SQL Server y hashea la contraseña con BCrypt costo 12 cuando se envía.
-  - Endpoints `/api/usuario-con-roles` en `router_v2.py` con envoltura estándar `{ "tabla": "usuario_con_roles", "total": N, "datos": [...] }`.
+  - Endpoints `/api/usuario-con-roles` en `controlador_v2.py` con envoltura estándar `{ "tabla": "usuario_con_roles", "total": N, "datos": [...] }`.
 
 ---
 
@@ -78,7 +78,7 @@
 - [x] **Cliente HTTP asíncrono centralizado (`front_python/servicios/cliente_api.py`):**
   - Peticiones con `httpx.AsyncClient` hacia todos los endpoints de v2.
 - [x] **Vistas de Clientes y Vendedores con Desplegables:**
-  - Selectores `<select>` poblados dinámicamente desde `api/persona` y `api/empresa` en `front_python/templates/crud_generico.html` (incluyendo opción vacía/nula en empresa para persona natural).
+  - Selectores `<select>` poblados dinámicamente desde `api/persona` y `api/empresa` en `front_python/templates/crud_recurso.html` (incluyendo opción vacía/nula en empresa para persona natural).
 - [x] **Módulo de Facturación:**
   - `facturas.html`: Listado de facturas con acceso al detalle y botón de anular.
   - `emitir_factura.html`: Formulario Maestro-Detalle interactivo que envía el arreglo `items` a la API sin calcular subtotales en el navegador.
@@ -88,7 +88,7 @@
   - `roles_por_usuario.html`: Gestión de tabla puente `rol_usuario`.
   - `permisos_por_rol.html`: Gestión de tabla puente `rutarol`.
 - [x] **Resiliencia y Concurrencia:**
-  - Carga paralela con `asyncio.gather(...)` en `front_python/main.py` para poblar múltiples catálogos foráneos simultáneamente.
+  - Carga paralela con `ThreadPoolExecutor` en `front_python/app.py` para poblar múltiples catálogos foráneos simultáneamente.
 
 ---
 

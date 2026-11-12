@@ -8,9 +8,10 @@
 ```text
 Actúa como un arquitecto de software senior en Python con FastAPI.
 Diseña una arquitectura en capas estricta para la API de facturación bdfacturas:
-- Router (api_python/routers/): solo conoce verbos HTTP, códigos de estado (200, 201, 204, 400, 404, 409, 422, 500) y el sobre de respuesta { tabla, total, datos }.
-- Servicio (api_python/servicios/): encapsula reglas de negocio puras, lanza excepciones de dominio (NoEncontradoExcepcion, ValidacionNegocioExcepcion, ConflictoExcepcion) y NO conoce HTTP ni PyMSSQL.
-- Repositorio (api_python/repositorios/): usa PyMSSQL con SQL parametrizado (%s) contra SQL Server sin ningún ORM pesado.
+- Controlador (api_python/controladores/): solo conoce verbos HTTP, códigos de estado (200, 201, 204, 400, 404, 409, 422, 500) y el sobre de respuesta { tabla, total, datos }.
+- Modelos (api_python/modelos/) y Servicios (api_python/servicios/): reglas de negocio puras recibiendo `IRepositorio*` por constructor.
+- Repositorio (api_python/repositorios/): interfaces ABC en interfaces.py + SQL parametrizado (%s) en repositorio_v1.py sin ORM.
+- Ensamblador (api_python/ensamblador.py): único punto que instancia concretos.
 - Separación de esquemas Pydantic (api_python/peticiones/esquemas.py): 3 esquemas por recurso (*Crear para POST 201, *Reemplazo para PUT 422, *Actualizar con todo opcional para PATCH 200).
 ```
 
@@ -22,19 +23,19 @@ Diseña una arquitectura en capas estricta para la API de facturación bdfactura
 ```text
 Genera el corte vertical completo en Python para la entidad 'producto':
 1. Esquemas Pydantic: ProductoCrear (POST), ProductoReemplazo (PUT), ProductoActualizar (PATCH).
-2. RepositorioProducto en api_python/repositorios/repositorio_v1.py heredando de RepositorioTablaBase con PyMSSQL.
-3. ServicioProducto en api_python/servicios/servicio_v1.py con validaciones de negocio.
-4. Rutas /api/producto en api_python/routers/router_v1.py con sobre estándar { tabla, total, datos }.
-5. Vista Jinja2 en front_python/templates/crud_generico.html para /productos consumiendo la API por httpx desde cliente_api.py, con manejo resiliente ante caída de la API.
+2. IRepositorioProducto (ABC) y RepositorioProductoSqlServer en api_python/repositorios/ con PyMSSQL.
+3. ServicioProducto en api_python/servicios/servicio_v1.py compuesto con IRepositorioProducto.
+4. Rutas /api/producto en api_python/controladores/controlador_v1.py con sobre estándar { tabla, total, datos }.
+5. Ruta explícita /productos en front_python/app.py (Flask) + crud_recurso.html consumiendo funciones dedicadas en servicios_recursos.py.
 ```
 
 ### Tabla 2: `persona`
 ```text
 Genera el corte vertical completo en Python para la entidad 'persona':
 1. Esquemas Pydantic: PersonaCrear, PersonaReemplazo, PersonaActualizar (codigo PK, nombre, email, telefono).
-2. RepositorioPersona con SQL parametrizado en PyMSSQL.
-3. ServicioPersona y rutas /api/persona en router_v1.py.
-4. Integración en /personas dentro de front_python/main.py con edición total (PUT) y parcial (PATCH).
+2. IRepositorioPersona y RepositorioPersonaSqlServer con SQL parametrizado.
+3. ServicioPersona y rutas /api/persona en controlador_v1.py.
+4. Ruta /personas en front_python/app.py (Flask) con edición total y parcial.
 ```
 
 ### Tabla 3: `empresa`

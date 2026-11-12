@@ -46,7 +46,7 @@
 api_python/config.py                      variables JWT (Jwt__Key >= 32 chars, Issuer, Audience, ExpiracionMinutos)
 api_python/peticiones/esquemas.py         SesionCrear { email, contrasena } en cuerpo JSON
 api_python/servicios/servicio_sesion.py   valida BCrypt + construye JWT HS256 + devuelve rutas permitidas
-api_python/routers/router_sesion.py       POST /api/sesion (público) y GET /api/permisos/mios
+api_python/controladores/controlador_sesion.py   POST /api/sesion (público) y GET /api/permisos/mios
 ```
 
 | Decisión | Razón |
@@ -79,7 +79,7 @@ def listar_usuarios(): ...
 front_python/servicios/cliente_api.py      almacén SESIONES en memoria + cookie HttpOnly 'factucorp_sid'
 front_python/templates/sesion.html         formulario de inicio de sesión
 front_python/templates/base.html           barra de usuario activo + menú filtrado dinámicamente
-front_python/main.py                       GET /sesion, POST /login, POST /cerrar-sesion
+front_python/app.py                        GET /sesion, POST /login, POST /cerrar-sesion
 ```
 
 ---

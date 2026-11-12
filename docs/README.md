@@ -2,7 +2,7 @@
 
 > **Proyecto:** Sistema Empresarial de Facturación (`bdfacturas`)  
 > **Asignatura:** Aplicación y Servicios Web  
-> **Tecnologías:** Python 3.12 (FastAPI + PyMSSQL + PyJWT + BCrypt) · Frontend Web Python (FastAPI + Jinja2 + httpx + Bootstrap local) · SQL Server 2022 · Docker Compose  
+> **Tecnologías:** Python 3.12 (FastAPI + PyMSSQL + PyJWT + BCrypt) · Frontend Web Python (Flask + Jinja2 + httpx + Bootstrap local) · SQL Server 2022 · Docker Compose  
 > **Metodología:** Desarrollo Incremental Acumulativo ($v1 \subset v2 \subset v3$).
 
 ---
@@ -33,12 +33,12 @@ Esta matriz resume exactamente **qué tiene de diferente cada versión** para fa
 
 | Dimensión | Versión 1 (`v1_sin_fk`) | Versión 2 (`v2_con_fk`) | Versión 3 (`v3_seguridad_rbac`) |
 |---|---|---|---|
-| **Propósito Principal** | Establecer la arquitectura limpia en 3 capas (Router-Servicio-Repositorio) con tablas planas. | Introducir la integridad referencial, lógica delegada en base de datos (Stored Procedures y Triggers) y transacciones contables. | Introducir la capa transversal de seguridad, protegiendo todos los endpoints y vistas según identidad y roles. |
+| **Propósito Principal** | Establecer la arquitectura limpia en capas (Controlador-Servicio-Repositorio + Modelos e Interfaces) con tablas planas. | Introducir la integridad referencial, lógica delegada en base de datos (Stored Procedures y Triggers) y transacciones contables. | Introducir la capa transversal de seguridad, protegiendo todos los endpoints y vistas según identidad y roles. |
 | **Tablas que Gestiona** | **6 tablas independientes:**<br>• `producto`<br>• `persona`<br>• `empresa`<br>• `rol`<br>• `ruta`<br>• `usuario` | **Las 12 tablas completas:**<br>*(las 6 de la v1)* +<br>• `cliente`<br>• `vendedor`<br>• `factura`<br>• `productosporfactura`<br>• `rol_usuario`<br>• `rutarol`<br>+ Recurso `usuario-con-roles` | **Las 12 tablas protegidas:**<br>Aplica control de acceso sobre las 12 tablas sin modificar sus modelos de datos. |
 | **¿Dónde vive la lógica?** | En Python (Servicios de dominio). SQL Server solo almacena datos con sentencias SQL directas ejecutadas vía PyMSSQL. | **En SQL Server:** Los subtotales, totales, validación de stock y anulación contable los ejecutan **Procedimientos Almacenados y un Trigger**. Python solo orquesta. | **En Dependencias FastAPI (`Depends`):** La validación de tokens JWT y autorización por rutas (`verificar_acceso_ruta`) se ejecuta antes de entrar al endpoint. |
 | **Códigos HTTP** | • `200 OK`<br>• `201 Created`<br>• `204 No Content`<br>• `400 Bad Request`<br>• `404 Not Found`<br>• `422 Unprocessable`<br>• `500 Server Error` | **Agrega `409 Conflict`:**<br>Para violaciones de clave foránea (error SQL `547`) y registros duplicados en tablas puente (`2627`/`2601`). | **Agrega `401 Unauthorized` y `403 Forbidden`:**<br>• `401`: Token ausente, expirado o credenciales inválidas.<br>• `403`: Usuario autenticado cuyo rol no tiene permiso sobre la ruta solicitada. |
 | **Peticiones POST / PUT** | El cliente envía todos los datos requeridos por la tabla. | En `factura`, el cliente **NO envía totales, subtotales ni precio unitario**. La base de datos es la única fuente de verdad contable. | Las peticiones exigen encabezado de autorización: `Authorization: Bearer <token>`. |
-| **Interfaz en Python (`front_python/`)** | Vistas CRUD independientes con plantillas Jinja2. Campos de texto donde los identificadores se digitan manualmente. | • Desplegables dinámicos (`<select>`) alimentados por la API.<br>• Formulario Maestro-Detalle para emitir facturas.<br>• Ficha de factura.<br>• Carga paralela con `asyncio.gather`. | • Pantalla de Login (`/sesion`).<br>• Sesión segura en servidor con cookie `HttpOnly`.<br>• Menú dinámico que oculta opciones según el rol. |
+| **Interfaz en Python (`front_python/`)** | Vistas CRUD en Flask + Jinja2. Campos de texto donde los identificadores se digitan manualmente. | • Desplegables dinámicos (`<select>`) alimentados por la API.<br>• Formulario Maestro-Detalle para emitir facturas.<br>• Ficha de factura.<br>• Carga paralela con `ThreadPoolExecutor`. | • Pantalla de Login (`/sesion`).<br>• Sesión segura en servidor con cookie `HttpOnly`.<br>• Menú dinámico que oculta opciones según el rol. |
 | **Seguridad / Acceso** | Público y anónimo. | Público y anónimo (con integridad referencial validada). | **Privado y autenticado:** Gestión de tokens JWT, BCrypt costo 12 y verificación dinámica vía `verificar_acceso_ruta`. |
 
 ---
@@ -125,11 +125,14 @@ Al momento de defender el proyecto, ten presentes estos conceptos clave:
 3. **¿Cuál es la diferencia entre el error 409 y el 422?**
    - **422 Unprocessable Entity:** Error de forma, tipo o validación Pydantic en el cuerpo JSON enviado (ej. campo obligatorio omitido o cantidad negativa).
    - **409 Conflict:** La petición está bien formada sintácticamente, pero choca con el estado actual de la base de datos (ej. violar una clave foránea porque el padre no existe, o intentar registrar un duplicado).
-4. **¿Por qué en `front_python/` usamos `asyncio.gather` con `httpx`?**
-   - Si una pantalla necesita cargar personas y empresas de la API de forma secuencial (`await llamar_api(...)` uno tras otro), las latencias se suman. Con `asyncio.gather`, ambas peticiones viajan concurrentemente en paralelo reduciendo el tiempo total de respuesta.
+4. **¿Por qué en `front_python/` usamos `ThreadPoolExecutor` con `httpx`?**
+   - Si una pantalla en Flask necesita cargar personas y empresas de la API de forma secuencial, las latencias se suman. Con `ThreadPoolExecutor`, ambas peticiones HTTP viajan concurrentemente en paralelo reduciendo el tiempo total de respuesta.
 
 ---
 
-## [Guía Completa de Retroalimentación y Preguntas de Sustentación](RETROALIMENTACION_Y_SUSTENTACION.md)
+## Guías de Estudio y Sustentación
 
-Para el desglose técnico versión por versión y las preguntas resueltas de examen en Python, consulta **[docs/RETROALIMENTACION_Y_SUSTENTACION.md](RETROALIMENTACION_Y_SUSTENTACION.md)**.
+- [PARADIGMA_POO.md](PARADIGMA_POO.md) — Abstracción (`ABC`), encapsulamiento, composición sobre herencia y polimorfismo.
+- [FLUJO_DE_UNA_PETICION.md](FLUJO_DE_UNA_PETICION.md) — Traza completa Flask → FastAPI → SQL Server.
+- [SOLID_CAPAS_PATRONES.md](SOLID_CAPAS_PATRONES.md) — Aplicación práctica de los 5 principios SOLID.
+- [RETROALIMENTACION_Y_SUSTENTACION.md](RETROALIMENTACION_Y_SUSTENTACION.md) — Retroalimentación por versión y preguntas resueltas.
