@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ cfg.titulo }} · Mapa de Conocimiento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">{{ cfg.titulo }}</h1>
+    <a href="/" class="btn btn-sm btn-outline-secondary">Volver al inicio</a>
+</div>
+
+{% if error_conexion %}
+    <div class="alert alert-danger aviso-desconexion">
+        <strong>Error de conexión con la API:</strong> {{ mensaje_error }}
+    </div>
+{% elif no_autenticado %}
+    <div class="alert alert-warning">
+        Debes <a href="/sesion" class="alert-link">iniciar sesión</a> para acceder a este recurso.
+    </div>
+{% elif sin_permiso %}
+    <div class="alert alert-danger">
+        <strong>Acceso denegado (403):</strong> {{ mensaje_error }}
+    </div>
+{% endif %}
+
+{% if mensaje %}
+    <div class="alert {{ 'alert-success' if exito else 'alert-danger' }}">{{ mensaje }}</div>
+{% endif %}
+
+{% if not sesion or sesion.puede_escribir %}
+<div class="tarjeta">
+    <div class="tarjeta-header">Crear nueva asociación</div>
+    <div class="tarjeta-body">
+        <form action="/{{ cfg.recurso_url }}/vincular" method="post">
+            <div class="campos">
+                <div>
+                    <label class="form-label" for="sel_izq">{{ cfg.etiqueta_izq }}</label>
+                    <select id="sel_izq" name="izq" class="form-select" required>
+                        <option value="">-- Seleccione --</option>
+                        {% for opt in opc_izq %}
+                            <option value="{{ opt.valor }}">{{ opt.etiqueta }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label" for="sel_der">{{ cfg.etiqueta_der }}</label>
+                    <select id="sel_der" name="der" class="form-select" required>
+                        <option value="">-- Seleccione --</option>
+                        {% for opt in opc_der %}
+                            <option value="{{ opt.valor }}">{{ opt.etiqueta }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="acciones">
+                <button type="submit" class="btn btn-primary">Vincular registros</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="tarjeta">
+    <div class="tarjeta-header d-flex justify-content-between align-items-center">
+        <span>Vínculos Activos</span>
+        <span class="badge bg-secondary">{{ filas | length }} activos</span>
+    </div>
+    <div class="tarjeta-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0 tabla-datos">
+                <thead>
+                    <tr>
+                        <th>{{ cfg.etiqueta_izq }}</th>
+                        <th>{{ cfg.etiqueta_der }}</th>
+                        {% if not sesion or sesion.puede_escribir %}
+                            <th class="text-end">Acciones</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in filas %}
+                        <tr>
+                            <td>{{ f.izq_display }}</td>
+                            <td>{{ f.der_display }}</td>
+                            {% if not sesion or sesion.puede_escribir %}
+                                <td class="text-end">
+                                    <form action="/{{ cfg.recurso_url }}/retirar" method="post" class="d-inline">
+                                        <input type="hidden" name="izq" value="{{ f[cfg.col_izq] }}">
+                                        <input type="hidden" name="der" value="{{ f[cfg.col_der] }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Retirar</button>
+                                    </form>
+                                </td>
+                            {% endif %}
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-4">No hay vínculos activos registrados.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

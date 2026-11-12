@@ -1,0 +1,290 @@
+{
+  "info": {
+    "name": "Mapa de Conocimiento — API REST Python (v1..v3)",
+    "_postman_id": "a7f3c8e2-9c1d-4e5a-8a2b-112233445566",
+    "description": "Colección de pruebas para el módulo Mapa de Conocimiento (21 tablas, borrado lógico activo=1/0, JWT + RBAC). Puerto API: 8117.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8117" },
+    { "key": "jwt", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "00 - Diagnóstico y Login JWT (v3)",
+      "item": [
+        {
+          "name": "GET Diagnóstico API",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/"
+          }
+        },
+        {
+          "name": "POST Login Administrador (guarda jwt)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) { pm.collectionVariables.set('jwt', json.token); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/login"
+          }
+        },
+        {
+          "name": "POST Login Consulta (solo lectura)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) { pm.collectionVariables.set('jwt', json.token); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuario\": \"consulta\",\n  \"password\": \"consulta123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/login"
+          }
+        },
+        {
+          "name": "GET Mis Permisos (JWT)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/permisos/mios"
+          }
+        }
+      ]
+    },
+    {
+      "name": "01 - Versión 1: Tablas sin FK (8)",
+      "item": [
+        {
+          "name": "GET Listar Proyectos",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/proyecto"
+          }
+        },
+        {
+          "name": "POST Crear Proyecto (id=900)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 900,\n  \"titulo\": \"Plataforma Analítica de Conocimiento\",\n  \"resumen\": \"Proyecto de prueba SDD con FastAPI y MariaDB\",\n  \"presupuesto\": 45000000,\n  \"tipo_financiacion\": \"Interna\",\n  \"tipo_fondos\": \"Propio\",\n  \"fecha_inicio\": \"2025-02-01\",\n  \"fecha_fin\": null\n}"
+            },
+            "url": "{{baseUrl}}/api/proyecto"
+          }
+        },
+        {
+          "name": "PUT Reemplazar Proyecto (id=900)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"titulo\": \"Plataforma Analítica de Conocimiento v2\",\n  \"resumen\": \"Proyecto actualizado por reemplazo completo\",\n  \"presupuesto\": 48000000,\n  \"tipo_financiacion\": \"Cofinanciada\",\n  \"tipo_fondos\": \"Mixto\",\n  \"fecha_inicio\": \"2025-02-01\",\n  \"fecha_fin\": \"2026-02-01\"\n}"
+            },
+            "url": "{{baseUrl}}/api/proyecto/900"
+          }
+        },
+        {
+          "name": "PATCH Actualizar Proyecto (id=900)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"presupuesto\": 50000000\n}"
+            },
+            "url": "{{baseUrl}}/api/proyecto/900"
+          }
+        },
+        {
+          "name": "DELETE Retiro Lógico Proyecto (id=900)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/proyecto/900"
+          }
+        },
+        {
+          "name": "GET Listar Áreas de Conocimiento",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/area-conocimiento"
+          }
+        },
+        {
+          "name": "GET Listar 17 ODS",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/objetivo-desarrollo-sostenible"
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Versión 2: Tablas con FK y Puentes (10)",
+      "item": [
+        {
+          "name": "GET Listar Docentes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/docente"
+          }
+        },
+        {
+          "name": "POST Crear Docente (valida FK linea_investigacion_principal)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cedula\": 1020304050,\n  \"nombres\": \"Laura\",\n  \"apellidos\": \"Gómez Restrepo\",\n  \"genero\": \"Femenino\",\n  \"cargo\": \"Profesor Asociado\",\n  \"fecha_nacimiento\": \"1985-06-15\",\n  \"correo\": \"laura.gomez@uni.edu.co\",\n  \"telefono\": \"3001112233\",\n  \"url_cvlac\": \"https://scienti.minciencias.gov.co/cvlac/1020\",\n  \"fecha_actualizacion\": \"2025-01-20\",\n  \"escalafon\": \"Asociado\",\n  \"perfil\": \"Investigadora en analítica de datos y arquitectura de software.\",\n  \"cat_minciencia\": \"Asociado\",\n  \"conv_minciencia\": \"894 de 2021\",\n  \"nacionalidaad\": \"Colombiana\",\n  \"linea_investigacion_principal\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/docente"
+          }
+        },
+        {
+          "name": "GET Listar Productos",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/producto"
+          }
+        },
+        {
+          "name": "POST Crear Producto (FK proyecto + tipo_producto)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": 901,\n  \"nombre\": \"Artículo Indexado Mapa Conocimiento\",\n  \"categoria\": \"Nuevo Conocimiento\",\n  \"fecha_entrega\": \"2025-11-10\",\n  \"proyecto\": 1,\n  \"tipo_producto\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/producto"
+          }
+        },
+        {
+          "name": "GET Listar Participaciones (desarrolla)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/desarrolla"
+          }
+        },
+        {
+          "name": "POST Asociar ODS a Proyecto (ods-proyecto)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proyecto\": 1,\n  \"ods\": 4\n}"
+            },
+            "url": "{{baseUrl}}/api/ods-proyecto"
+          }
+        },
+        {
+          "name": "DELETE Retirar ODS de Proyecto (4/1)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/ods-proyecto/1/4"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Versión 3: Usuarios y Roles (Solo Admin)",
+      "item": [
+        {
+          "name": "GET Listar Usuarios",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/usuario"
+          }
+        },
+        {
+          "name": "GET Listar Roles",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/rol"
+          }
+        },
+        {
+          "name": "GET Listar Asignaciones Rol-Usuario",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/rol-usuario"
+          }
+        },
+        {
+          "name": "POST Crear Usuario con BCrypt",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{jwt}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"auditor\",\n  \"password\": \"Auditor2025!\",\n  \"email\": \"auditor@uni.edu.co\",\n  \"nombre_completo\": \"Auditor Académico\"\n}"
+            },
+            "url": "{{baseUrl}}/api/usuario"
+          }
+        }
+      ]
+    }
+  ]
+}

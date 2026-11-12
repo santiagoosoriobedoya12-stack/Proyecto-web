@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% block title %}{{ config.titulo }} · Mapa de Conocimiento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">{{ config.titulo }}</h1>
+    <a href="/" class="btn btn-sm btn-outline-secondary">Volver al inicio</a>
+</div>
+
+{% if error_conexion %}
+    <div class="alert alert-danger aviso-desconexion">
+        <strong>Error de conexión con la API:</strong> {{ mensaje_error }}
+    </div>
+{% elif no_autenticado %}
+    <div class="alert alert-warning">
+        Debes <a href="/sesion" class="alert-link">iniciar sesión</a> para acceder a este recurso.
+    </div>
+{% elif sin_permiso %}
+    <div class="alert alert-danger">
+        <strong>Acceso denegado (403):</strong> {{ mensaje_error or "Tu rol no tiene permiso sobre esta operación." }}
+    </div>
+{% endif %}
+
+{% if mensaje %}
+    <div class="alert {{ 'alert-success' if exito else 'alert-danger' }}">
+        {{ mensaje }}
+        {% if errores %}
+            <ul class="mb-0 mt-2">
+                {% for err in errores %}
+                    <li><code>{{ err.campo }}</code>: {{ err.mensaje }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </div>
+{% endif %}
+
+{% if not sesion or sesion.puede_escribir %}
+<div class="tarjeta">
+    <div class="tarjeta-header">
+        {% if editando %}
+            Editando {{ config.singular }} (<code>{{ clave_edicion }}</code>)
+        {% else %}
+            Registrar nuevo {{ config.singular }}
+        {% endif %}
+    </div>
+    <div class="tarjeta-body">
+        <form action="/{{ config.recurso_url }}/accion" method="post">
+            <input type="hidden" name="clave_edicion" value="{{ clave_edicion or '' }}">
+            <div class="campos">
+                {% for c in config.campos %}
+                    {% set val_actual = valores.get(c.nombre) %}
+                    {% if not editando and c.pk and config.pk_auto %}
+                        <div>
+                            <label class="form-label">{{ c.etiqueta }}</label>
+                            <input type="text" class="form-control" value="Autogenerado por MariaDB" disabled>
+                        </div>
+                    {% elif c.tipo == "select" %}
+                        <div>
+                            <label class="form-label" for="campo_{{ c.nombre }}">{{ c.etiqueta }}</label>
+                            <select
+                                id="campo_{{ c.nombre }}"
+                                name="{{ c.nombre }}"
+                                class="form-select"
+                                {% if not c.opcional %}required{% endif %}
+                            >
+                                {% if c.opcional %}
+                                    <option value="">-- Sin asignar --</option>
+                                {% else %}
+                                    <option value="">-- Seleccione --</option>
+                                {% endif %}
+                                {% for opt in selects.get(c.select_key, []) %}
+                                    <option
+                                        value="{{ opt.valor }}"
+                                        {% if val_actual is not none and (val_actual | string) == (opt.valor | string) %}selected{% endif %}
+                                    >
+                                        {{ opt.etiqueta }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    {% else %}
+                        <div>
+                            <label class="form-label" for="campo_{{ c.nombre }}">{{ c.etiqueta }}</label>
+                            <input
+                                id="campo_{{ c.nombre }}"
+                                type="{{ c.tipo }}"
+                                name="{{ c.nombre }}"
+                                class="form-control"
+                                {% if c.step %}step="{{ c.step }}"{% endif %}
+                                {% if c.placeholder %}placeholder="{{ c.placeholder }}"{% endif %}
+                                {% if editando and c.pk %}readonly{% endif %}
+                                {% if not editando and not c.opcional and c.tipo != 'password' %}required{% endif %}
+                                {% if not editando and c.tipo == 'password' and not c.opcional %}required{% endif %}
+                                value="{% if c.tipo != 'password' and val_actual is not none %}{{ val_actual }}{% endif %}"
+                            >
+                            {% if c.ayuda %}
+                                <div class="form-text">{{ c.ayuda }}</div>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+
+            <div class="acciones">
+                {% if editando %}
+                    <button type="submit" name="modo" value="put" class="btn btn-primary">Guardar la ficha completa</button>
+                    <button type="submit" name="modo" value="patch" class="btn btn-outline-primary">Guardar solo lo que cambié</button>
+                    <a href="/{{ config.recurso_url }}" class="btn btn-secondary">Cancelar</a>
+                {% else %}
+                    <button type="submit" name="modo" value="crear" class="btn btn-primary">Crear {{ config.singular }}</button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-info">
+    Modo <strong>solo lectura</strong> (rol Consulta): puedes revisar los registros activos sin modificar datos.
+</div>
+{% endif %}
+
+<div class="tarjeta">
+    <div class="tarjeta-header d-flex justify-content-between align-items-center">
+        <span>{{ config.titulo_tabla }}</span>
+        <span class="badge bg-secondary">{{ filas | length }} activos</span>
+    </div>
+    <div class="tarjeta-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0 tabla-datos">
+                <thead>
+                    <tr>
+                        {% for col in config.columnas %}
+                            <th>{{ col.titulo }}</th>
+                        {% endfor %}
+                        {% if not sesion or sesion.puede_escribir %}
+                            <th class="text-end">Acciones</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in filas %}
+                        {% set pk_val = f[config.pk] %}
+                        <tr>
+                            {% for col in config.columnas %}
+                                <td>
+                                    {% set celda = f.get(col.campo) %}
+                                    {% if col.codigo %}
+                                        <code>{{ celda if celda is not none else '' }}</code>
+                                    {% else %}
+                                        {{ celda if celda is not none else '—' }}
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                            {% if not sesion or sesion.puede_escribir %}
+                                <td class="text-end text-nowrap">
+                                    <a href="/{{ config.recurso_url }}?editar={{ pk_val }}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                                    <form action="/{{ config.recurso_url }}/retirar" method="post" class="d-inline">
+                                        <input type="hidden" name="clave" value="{{ pk_val }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Retirar</button>
+                                    </form>
+                                </td>
+                            {% endif %}
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="{{ (config.columnas | length) + 1 }}" class="text-center text-muted py-4">
+                                No hay registros activos para mostrar.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

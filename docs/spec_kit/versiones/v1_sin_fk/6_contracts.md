@@ -1,124 +1,22 @@
-# Contratos HTTP — Versión 1: seis recursos × seis endpoints
+# Contratos HTTP — Versión 1 (8 Tablas sin Clave Foránea)
 
-> **Versión 1** · Base: `http://localhost:8032`. Estos contratos se cumplen
-> **al pie de la letra** (constitución, Artículo 7): mismos verbos, rutas,
-> códigos y formatos.
+Todos los endpoints viven en [`controlador_v1.py`](../../../../api_mapa/controladores/controlador_v1.py) con esquemas Pydantic segregados en [`esquemas.py`](../../../../api_mapa/peticiones/esquemas.py).
 
----
+| Recurso | Prefijo REST | PK (Tipo) | Auto-Inc |
+| :--- | :--- | :--- | :---: |
+| Área de Conocimiento | `/api/area-conocimiento` | `id` (`int`) | No |
+| ODS | `/api/objetivo-desarrollo-sostenible` | `id` (`int`) | No |
+| Área de Aplicación | `/api/area-aplicacion` | `id` (`int`) | No |
+| Término Clave | `/api/termino-clave` | `termino` (`str`) | No |
+| Línea de Investigación | `/api/linea-investigacion` | `id` (`int`) | Sí |
+| Aliado | `/api/aliado` | `nit` (`int`) | No |
+| Tipo de Producto | `/api/tipo-producto` | `id` (`int`) | No |
+| Proyecto | `/api/proyecto` | `id` (`int`) | No |
 
-## 0. Convenciones globales
-
-- Lecturas con **envoltura**: `{tabla, limite, total, datos:[…]}`.
-- Errores SIEMPRE `{estado, mensaje, detalle}`; el 422 lleva además
-  `errores:[…]` (la lista de mensajes de la validación de la petición).
-
-| Situación | HTTP |
-|---|---|
-| Body inválido según la **petición del verbo** | **422** con `errores:[…]` |
-| Regla de negocio rota (límite ≤ 0, PATCH sin campos) | **400** |
-| El recurso no existe | **404** |
-| La BD rechaza (PK duplicada) o falla | **500** (error del motor en `detalle`) |
-
-> ## Los SEIS recursos de la v1
->
-> Lo que sigue documenta `producto` **en detalle**. Los otros cinco
-> —`empresa`, `persona`, `rol`, `ruta`, `usuario`— tienen **exactamente el
-> mismo contrato**, cambiando la ruta y los campos:
->
-> | Recurso | Ruta base | Clave | Campos del body |
-> |---|---|---|---|
-> | `producto` | `/api/producto` | `codigo` (texto) | `nombre`, `stock`, `valorunitario` |
-> | `empresa` | `/api/empresa` | `codigo` (texto) | `nombre` |
-> | `persona` | `/api/persona` | `codigo` (texto) | `nombre`, `email`, `telefono` |
-> | `rol` | `/api/rol` | `id` (IDENTITY) | `nombre` |
-> | `ruta` | `/api/ruta` | `id` (IDENTITY) | `ruta`, `descripcion` |
-> | `usuario` | `/api/usuario` | `email` (texto) | `contrasena` |
->
-> **Las dos de llave `IDENTITY` tienen una diferencia que importa:** el `POST`
-> **no manda el `id`** —lo genera la base—, así que su petición de creación no
-> lo lleva. Pedirlo obligaría al cliente a inventar una llave.
->
-> **Son 36 endpoints** (seis recursos × seis verbos) más el de diagnóstico.
-
-## 1. `GET /` — Diagnóstico
-
-```json
-{
-  "mensaje": "API Facturas funcionando",
-  "version": "v1",
-  "contratos": "docs/spec_kit/versiones/v1_sin_fk/6_contracts.md"
-}
-```
-
-Además: `GET /swagger` abre la **documentación interactiva** (Swagger UI).
-
-## 2. `GET /api/producto[?limite=N]` — Listar
-
-```
-GET /api/producto?limite=3
-→ 200 { "tabla":"producto", "limite":3, "total":3,
-        "datos":[ {"codigo":"PR001","nombre":"Laptop Lenovo IdeaPad","stock":17,"valorunitario":2500000.00}, … ] }
-→ 204 (sin cuerpo) si la tabla está vacía
-→ 400 si limite <= 0
-```
-
-## 3. `GET /api/producto/{codigo}` — Obtener uno
-
-```
-GET /api/producto/PR001
-→ 200 {"codigo":"PR001","nombre":"Laptop Lenovo IdeaPad","stock":17,"valorunitario":2500000.00}
-
-GET /api/producto/PR999
-→ 404 {"estado":404,"mensaje":"Producto no encontrado.","detalle":"No existe un producto con codigo = PR999"}
-```
-
-## 4. `POST /api/producto` — Crear (body completo, con código)
-
-Body (petición `ProductoCrear` — todos obligatorios):
-
-```
-POST /api/producto   body {"codigo":"PR009","nombre":"Webcam","stock":10,"valorunitario":350000}
-→ 200 {"estado":200,"mensaje":"Producto creado exitosamente."}
-
-body {"codigo":"PR009","stock":-5}          ← sin nombre, stock negativo
-→ 422 {"estado":422,"mensaje":"Datos inválidos.",
-       "errores":["El campo nombre es obligatorio.",
-                  "El campo stock debe ser un entero mayor o igual a 0."]}
-
-body {"codigo":"PR001", …}                  ← código duplicado (PK)
-→ 500 con el error del motor en detalle
-```
-
-## 5. `PUT /api/producto/{codigo}` — Reemplazo COMPLETO
-
-Body (petición `ProductoReemplazo` — TODOS obligatorios; el código va en la URL):
-
-```
-PUT /api/producto/PR009   body {"nombre":"Webcam HD","stock":12,"valorunitario":380000}
-→ 200 {"estado":200,"mensaje":"Producto reemplazado exitosamente.","filasAfectadas":1}
-
-body {"stock":99}                           ← faltan campos: PUT es TODO o 422
-→ 422 con la lista de campos faltantes
-→ 404 si el código no existe
-```
-
-## 6. `PATCH /api/producto/{codigo}` — Actualización PARCIAL
-
-Body (petición `ProductoActualizar` — todos opcionales; se escribe SOLO lo enviado):
-
-```
-PATCH /api/producto/PR009   body {"stock":99}      ← el MISMO body que arriba
-→ 200 {"estado":200,"mensaje":"Producto actualizado exitosamente.","filasAfectadas":1}
-
-body {}                                     ← nada que actualizar
-→ 400 {"estado":400,"mensaje":"Parámetros inválidos.","detalle":"No se envió ningún campo para actualizar."}
-→ 404 si el código no existe
-```
-
-## 7. `DELETE /api/producto/{codigo}` — Eliminar
-
-```
-DELETE /api/producto/PR009
-→ 200 {"estado":200,"mensaje":"Producto eliminado exitosamente.","filasEliminadas":1}
-→ 404 si no existe (incluido el segundo DELETE seguido)
-```
+## Verbos Estándar por Recurso
+- `GET ""` -> `200 OK` (`{"tabla", "limite", "total", "datos"}`) o `204 No Content` si vacío (solo filas con `activo = 1`).
+- `GET "/{clave}"` -> `200 OK` o `404 Not Found`.
+- `POST ""` -> `201 Created` o `409 Conflict` si la PK ya existe, o `422` por esquema inválido.
+- `PUT "/{clave}"` -> `200 OK` (idempotente gracias a `CLIENT.FOUND_ROWS`) o `404 Not Found`.
+- `PATCH "/{clave}"` -> `200 OK` (`{"mensaje", "filas_afectadas"}`), `400 Bad Request` si el cuerpo llega vacío, `404` si no existe.
+- `DELETE "/{clave}"` -> `204 No Content` (retiro lógico `activo = 0`) o `404 Not Found`.

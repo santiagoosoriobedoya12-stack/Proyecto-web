@@ -1,4 +1,0 @@
-# Framework web Python para el frontend (renderizado en servidor con Jinja2)
-flask==3.1.0
-# Cliente HTTP para consumir la API REST FastAPI (sin acceso directo a SQL Server)
-httpx==0.28.1

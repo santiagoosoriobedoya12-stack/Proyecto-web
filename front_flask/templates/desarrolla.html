@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Participación Docente–Proyecto · Mapa de Conocimiento{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Participación de Docentes en Proyectos (<code>desarrolla</code>)</h1>
+    <a href="/" class="btn btn-sm btn-outline-secondary">Volver al inicio</a>
+</div>
+
+{% if error_conexion %}
+    <div class="alert alert-danger aviso-desconexion">
+        <strong>Error de conexión con la API:</strong> {{ mensaje_error }}
+    </div>
+{% elif no_autenticado %}
+    <div class="alert alert-warning">
+        Debes <a href="/sesion" class="alert-link">iniciar sesión</a> para acceder a este recurso.
+    </div>
+{% elif sin_permiso %}
+    <div class="alert alert-danger">
+        <strong>Acceso denegado (403):</strong> {{ mensaje_error }}
+    </div>
+{% endif %}
+
+{% if mensaje %}
+    <div class="alert {{ 'alert-success' if exito else 'alert-danger' }}">{{ mensaje }}</div>
+{% endif %}
+
+{% if not sesion or sesion.puede_escribir %}
+<div class="tarjeta">
+    <div class="tarjeta-header">
+        {% if editando %}
+            Editar participación docente en proyecto
+        {% else %}
+            Vincular docente a proyecto
+        {% endif %}
+    </div>
+    <div class="tarjeta-body">
+        <form action="/desarrolla/guardar" method="post">
+            <input type="hidden" name="es_edicion" value="{{ '1' if editando else '0' }}">
+            <div class="campos">
+                {% if editando %}
+                    <input type="hidden" name="docente" value="{{ editando.docente }}">
+                    <input type="hidden" name="proyecto" value="{{ editando.proyecto }}">
+                    <div>
+                        <label class="form-label">Docente</label>
+                        <input type="text" class="form-control" value="{{ editando.docente_display }}" disabled>
+                    </div>
+                    <div>
+                        <label class="form-label">Proyecto</label>
+                        <input type="text" class="form-control" value="{{ editando.proyecto_display }}" disabled>
+                    </div>
+                {% else %}
+                    <div>
+                        <label class="form-label" for="sel_docente">Docente (FK)</label>
+                        <select id="sel_docente" name="docente" class="form-select" required>
+                            <option value="">-- Seleccione docente --</option>
+                            {% for opt in docentes %}
+                                <option value="{{ opt.valor }}">{{ opt.etiqueta }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label" for="sel_proyecto">Proyecto (FK)</label>
+                        <select id="sel_proyecto" name="proyecto" class="form-select" required>
+                            <option value="">-- Seleccione proyecto --</option>
+                            {% for opt in proyectos %}
+                                <option value="{{ opt.valor }}">{{ opt.etiqueta }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+
+                <div>
+                    <label class="form-label" for="campo_rol">Rol en el proyecto</label>
+                    <input id="campo_rol" type="text" name="rol" class="form-control" required
+                           placeholder="Investigador Principal / Coinvestigador"
+                           value="{{ editando.rol if editando else '' }}">
+                </div>
+                <div>
+                    <label class="form-label" for="campo_desc">Descripción de actividades</label>
+                    <input id="campo_desc" type="text" name="descripcion" class="form-control" required
+                           value="{{ editando.descripcion if editando else '' }}">
+                </div>
+            </div>
+
+            <div class="acciones">
+                <button type="submit" class="btn btn-primary">
+                    {{ 'Guardar ficha completa' if editando else 'Registrar participación' }}
+                </button>
+                {% if editando %}
+                    <a href="/desarrolla" class="btn btn-secondary">Cancelar</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<div class="tarjeta">
+    <div class="tarjeta-header d-flex justify-content-between align-items-center">
+        <span>Participaciones Activas</span>
+        <span class="badge bg-secondary">{{ filas | length }} activos</span>
+    </div>
+    <div class="tarjeta-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0 tabla-datos">
+                <thead>
+                    <tr>
+                        <th>Docente</th>
+                        <th>Proyecto</th>
+                        <th>Rol</th>
+                        <th>Descripción</th>
+                        {% if not sesion or sesion.puede_escribir %}
+                            <th class="text-end">Acciones</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in filas %}
+                        <tr>
+                            <td>{{ f.docente_display }}</td>
+                            <td>{{ f.proyecto_display }}</td>
+                            <td><span class="badge bg-info text-dark">{{ f.rol }}</span></td>
+                            <td>{{ f.descripcion }}</td>
+                            {% if not sesion or sesion.puede_escribir %}
+                                <td class="text-end text-nowrap">
+                                    <a href="/desarrolla?docente={{ f.docente }}&proyecto={{ f.proyecto }}" class="btn btn-sm btn-outline-secondary">Editar</a>
+                                    <form action="/desarrolla/retirar" method="post" class="d-inline">
+                                        <input type="hidden" name="docente" value="{{ f.docente }}">
+                                        <input type="hidden" name="proyecto" value="{{ f.proyecto }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Retirar</button>
+                                    </form>
+                                </td>
+                            {% endif %}
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">No hay participaciones activas registradas.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

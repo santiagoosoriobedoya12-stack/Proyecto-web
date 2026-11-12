@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Inicio · Mapa de Conocimiento{% endblock %}
+
+{% block content %}
+<div class="tarjeta">
+    <div class="tarjeta-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>Sistema de Información · Módulo Mapa de Conocimiento</span>
+        {% if sesion %}
+            <span class="badge bg-success">Sesión activa: {{ sesion.username }} [{{ sesion.roles | join(', ') }}]</span>
+        {% else %}
+            <span class="badge bg-warning text-dark">Sin sesión autenticada</span>
+        {% endif %}
+    </div>
+    <div class="tarjeta-body">
+        <p class="mb-2">
+            Gestión integral de proyectos de investigación, docentes, productos académicos, alianzas externas y taxonomías
+            (Áreas de Conocimiento, ODS, Áreas de Aplicación, Líneas y Términos Clave).
+        </p>
+        {% if not sesion %}
+            <div class="alert alert-warning mb-3">
+                Las operaciones sobre la API requieren sesión JWT (<code>v3</code>).
+                <a href="/sesion" class="alert-link">Inicia sesión aquí</a> antes de consultar o editar datos.
+            </div>
+        {% endif %}
+        <div class="acciones">
+            <a href="/sesion" class="btn btn-primary btn-sm">Gestionar Sesión</a>
+            <a href="http://localhost:8117/swagger" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">Documentación API (Swagger)</a>
+            <a href="http://localhost:8108" target="_blank" rel="noopener" class="btn btn-outline-secondary btn-sm">phpMyAdmin (8108)</a>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="tarjeta h-100 tarjeta-kpi">
+            <div class="tarjeta-header">v1 · Tablas Independientes (8)</div>
+            <div class="tarjeta-body">
+                <p class="small text-muted">Entidades sin claves foráneas salientes con borrado lógico (<code>activo = 1/0</code>).</p>
+                <div class="list-group list-group-flush">
+                    <a class="list-group-item list-group-item-action" href="/proyectos">Proyectos de Investigación</a>
+                    <a class="list-group-item list-group-item-action" href="/lineas-investigacion">Líneas de Investigación</a>
+                    <a class="list-group-item list-group-item-action" href="/areas-conocimiento">Áreas de Conocimiento</a>
+                    <a class="list-group-item list-group-item-action" href="/ods">Objetivos de Desarrollo Sostenible</a>
+                    <a class="list-group-item list-group-item-action" href="/areas-aplicacion">Áreas de Aplicación</a>
+                    <a class="list-group-item list-group-item-action" href="/terminos-clave">Términos Clave</a>
+                    <a class="list-group-item list-group-item-action" href="/aliados">Aliados Externos</a>
+                    <a class="list-group-item list-group-item-action" href="/tipos-producto">Tipos de Producto</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="tarjeta h-100 tarjeta-kpi">
+            <div class="tarjeta-header">v2 · FKs y Maestro-Detalle (10)</div>
+            <div class="tarjeta-body">
+                <p class="small text-muted">Entidades con claves foráneas y 8 relaciones muchos-a-muchos validadas.</p>
+                <div class="list-group list-group-flush">
+                    <a class="list-group-item list-group-item-action fw-semibold" href="/docentes">Docentes Investigadores</a>
+                    <a class="list-group-item list-group-item-action fw-semibold" href="/productos">Productos de Investigación</a>
+                    <a class="list-group-item list-group-item-action fw-semibold" href="/desarrolla">Participación Docente–Proyecto</a>
+                    <a class="list-group-item list-group-item-action" href="/aliados-proyecto">Aliados por Proyecto</a>
+                    <a class="list-group-item list-group-item-action" href="/palabras-clave">Palabras Clave por Proyecto</a>
+                    <a class="list-group-item list-group-item-action" href="/ac-proyecto">Áreas Conocimiento por Proyecto</a>
+                    <a class="list-group-item list-group-item-action" href="/proyecto-linea">Líneas por Proyecto</a>
+                    <a class="list-group-item list-group-item-action" href="/ods-proyecto">ODS por Proyecto</a>
+                    <a class="list-group-item list-group-item-action" href="/aa-proyecto">Áreas Aplicación por Proyecto</a>
+                    <a class="list-group-item list-group-item-action" href="/docente-producto">Autores Docentes por Producto</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="tarjeta h-100 tarjeta-kpi">
+            <div class="tarjeta-header">v3 · Seguridad JWT y RBAC (3)</div>
+            <div class="tarjeta-body">
+                <p class="small text-muted">Autenticación JWT + contraseñas BCrypt + roles (<code>Administrador</code>, <code>Investigador</code>, <code>Consulta</code>).</p>
+                {% if sesion and sesion.es_admin %}
+                    <div class="list-group list-group-flush">
+                        <a class="list-group-item list-group-item-action" href="/usuarios">Usuarios del Sistema</a>
+                        <a class="list-group-item list-group-item-action" href="/roles">Roles de Acceso</a>
+                        <a class="list-group-item list-group-item-action" href="/roles-usuario">Asignación de Roles</a>
+                    </div>
+                {% else %}
+                    <div class="alert alert-light border small mb-2">
+                        Los paneles administrativos de usuarios y roles están habilitados únicamente para el rol <strong>Administrador</strong>.
+                    </div>
+                    <a href="/sesion" class="btn btn-sm btn-outline-primary">Iniciar sesión como Administrador</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Sesión · Mapa de Conocimiento{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="tarjeta">
+            <div class="tarjeta-header">Autenticación de Usuario (JWT + Cookie HttpOnly)</div>
+            <div class="tarjeta-body">
+                {% if error %}
+                    <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+
+                {% if sesion %}
+                    <div class="alert alert-success">
+                        Sesión activa como <strong>{{ sesion.username }}</strong> ({{ sesion.email }}).<br>
+                        Roles: <strong>{{ sesion.roles | join(', ') }}</strong>
+                    </div>
+                    <form action="/cerrar-sesion" method="post">
+                        <button type="submit" class="btn btn-outline-danger">Cerrar sesión actual</button>
+                    </form>
+                {% else %}
+                    <form action="/sesion" method="post">
+                        <div class="mb-3">
+                            <label for="usuario" class="form-label">Usuario o correo electrónico</label>
+                            <input type="text" id="usuario" name="usuario" class="form-control" required autofocus placeholder="admin">
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Contraseña</label>
+                            <input type="password" id="password" name="password" class="form-control" required placeholder="••••••••">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Ingresar al sistema</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="tarjeta">
+            <div class="tarjeta-header">Usuarios Semilla de Prueba</div>
+            <div class="tarjeta-body">
+                <p class="small text-muted">
+                    Sembrados automáticamente al iniciar <code>api-mapa</code> si aún no existen en la base de datos:
+                </p>
+                <table class="table table-sm table-bordered mb-0">
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Contraseña</th>
+                            <th>Rol y alcance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>admin</code></td>
+                            <td><code>admin123</code></td>
+                            <td>Administrador (CRUD completo en las 21 tablas)</td>
+                        </tr>
+                        <tr>
+                            <td><code>investigador</code></td>
+                            <td><code>inv123</code></td>
+                            <td>Investigador (CRUD v1 y v2; sin acceso a v3 admin)</td>
+                        </tr>
+                        <tr>
+                            <td><code>consulta</code></td>
+                            <td><code>consulta123</code></td>
+                            <td>Consulta (solo lectura GET en v1 y v2; 403 al escribir)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

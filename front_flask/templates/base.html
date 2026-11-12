@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mapa de Conocimiento{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body class="app-contenedor">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3 py-2">
+        <div class="container-fluid flex-wrap gap-2">
+            <a class="navbar-brand fw-bold" href="/">Mapa de Conocimiento</a>
+
+            <div class="d-flex flex-wrap align-items-center gap-3 me-auto">
+                <details class="nav-menu-grupo position-relative">
+                    <summary class="btn btn-sm btn-outline-light">v1 Catálogos y Proyectos</summary>
+                    <div class="card position-absolute mt-1 p-2 shadow-sm" style="min-width: 240px; z-index: 1050;">
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/proyectos">Proyectos</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/lineas-investigacion">Líneas de Investigación</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/areas-conocimiento">Áreas de Conocimiento</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/ods">ODS (17 Objetivos)</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/areas-aplicacion">Áreas de Aplicación</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/terminos-clave">Términos Clave</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/aliados">Aliados Externos</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/tipos-producto">Tipos de Producto</a>
+                    </div>
+                </details>
+
+                <details class="nav-menu-grupo position-relative">
+                    <summary class="btn btn-sm btn-outline-info">v2 Investigación y Vínculos</summary>
+                    <div class="card position-absolute mt-1 p-2 shadow-sm" style="min-width: 270px; z-index: 1050;">
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark fw-semibold" href="/docentes">Docentes (FK Línea)</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark fw-semibold" href="/productos">Productos (FK Proyecto/Tipo)</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark fw-semibold" href="/desarrolla">Participación Docente–Proyecto</a>
+                        <hr class="my-1">
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/aliados-proyecto">Aliados por Proyecto</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/palabras-clave">Palabras Clave por Proyecto</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/ac-proyecto">Áreas Conocimiento por Proyecto</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/proyecto-linea">Líneas por Proyecto</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/ods-proyecto">ODS por Proyecto</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/aa-proyecto">Áreas Aplicación por Proyecto</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/docente-producto">Docentes por Producto</a>
+                    </div>
+                </details>
+
+                {% if sesion and sesion.es_admin %}
+                <details class="nav-menu-grupo position-relative">
+                    <summary class="btn btn-sm btn-outline-warning">v3 Administración</summary>
+                    <div class="card position-absolute mt-1 p-2 shadow-sm" style="min-width: 220px; z-index: 1050;">
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/usuarios">Usuarios</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/roles">Roles</a>
+                        <a class="d-block py-1 px-2 text-decoration-none text-dark" href="/roles-usuario">Roles por Usuario</a>
+                    </div>
+                </details>
+                {% endif %}
+            </div>
+
+            <div class="d-flex align-items-center gap-2 text-light">
+                {% if sesion %}
+                    <span class="small">
+                        <strong>{{ sesion.username }}</strong>
+                        ({{ sesion.roles | join(', ') if sesion.roles else 'Sin rol' }})
+                    </span>
+                    <form action="/cerrar-sesion" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-light">Cerrar sesión</button>
+                    </form>
+                {% else %}
+                    <a href="/sesion" class="btn btn-sm btn-warning">Iniciar sesión</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main class="contenido-principal container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="border-top bg-white py-3 mt-4">
+        <div class="container d-flex flex-wrap justify-content-between small text-muted">
+            <span>Módulo Mapa de Conocimiento · 21 tablas · Python (FastAPI + Flask + MariaDB)</span>
+            <span>Puerto Front: <code>8116</code> · API Swagger: <a href="http://localhost:8117/swagger" target="_blank" rel="noopener">localhost:8117/swagger</a></span>
+        </div>
+    </footer>
+</body>
+</html>

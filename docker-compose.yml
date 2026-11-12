@@ -1,79 +1,82 @@
 # ==============================================================
-# Proyecto Aplicación y Servicios Web — Stack 100% Python (v1 ⊂ v2 ⊂ v3)
-#
-#   Navegador → FRONT FLASK (Flask + Jinja2, :8099) → API FASTAPI (FastAPI, :8035) → SQL Server (bdfacturas)
+# Proyecto de Aula: Módulo Mapa de Conocimiento (21 tablas · MariaDB)
+# Stack obligatorio: Backend Python (FastAPI) + Frontend Python (Flask + Jinja2)
+# Versiones acumulativas: v1 (8 tablas sin FK) ⊂ v2 (10 tablas con FK) ⊂ v3 (JWT + Roles)
 #
 # Uso: docker compose up -d --build
-# Secretos: lee variables desde .env (ver .env.example) con valores locales de desarrollo.
+# Reset BD: docker compose down -v && docker compose up -d --build
 # ==============================================================
 services:
 
-  # --- SQL Server 2022 ---
-  sqlserver:
+  mariadb:
+    image: mariadb:11
+    container_name: mapa-mariadb
     restart: unless-stopped
-    image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-Paradigmas123!}"
-      MSSQL_PID: Developer
-    volumes:
-      - mssqldata:/var/opt/mssql
+      MARIADB_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-MapaRoot2026!}"
+      MARIADB_DATABASE: "${DB_NAME:-mapa_conocimiento}"
+      MARIADB_USER: "${DB_USER:-mapa_user}"
+      MARIADB_PASSWORD: "${DB_PASSWORD:-MapaConocimiento2026!}"
     ports:
-      - "11463:1433"
+      - "13333:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' -b"]
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       interval: 10s
-      timeout: 10s
-      retries: 20
-      start_period: 30s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
 
-  # --- Inicializador (crea bdfacturas la primera vez y termina) ---
-  sqlserver-init:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    depends_on:
-      sqlserver:
-        condition: service_healthy
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: mapa-phpmyadmin
+    restart: unless-stopped
     environment:
-      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-Paradigmas123!}"
-    volumes:
-      - ./db:/scripts:ro
-    entrypoint: ["/bin/bash", "/scripts/init.sh"]
-    restart: "no"
+      PMA_HOST: mariadb
+      PMA_PORT: 3306
+    ports:
+      - "8108:80"
+    depends_on:
+      mariadb:
+        condition: service_healthy
 
-  # --- API Facturas en Python (FastAPI + PyMSSQL + PyJWT + BCrypt) ---
-  api-facturas:
-    build: ./api_python
-    container_name: facturas-api-python
-    volumes:
-      - ./api_python:/app
+  api-mapa:
+    build: ./api_mapa
+    container_name: mapa-api-fastapi
     restart: unless-stopped
     ports:
-      - "8035:8032"
-      - "8032:8032"
-    environment:
-      ConnectionStrings__SqlServer: "Server=${DB_HOST:-sqlserver},${DB_PORT:-1433};Database=${DB_NAME:-bdfacturas_sqlserver_local};User Id=${DB_USER:-sa};Password=${MSSQL_SA_PASSWORD:-Paradigmas123!};TrustServerCertificate=True;"
-      Jwt__Key: "${JWT_KEY:-SuperClaveSecretaUltraSeguraParaFirmarJwtDeFacturas2026*}"
-      Jwt__Issuer: "${JWT_ISSUER:-ApiFacturas}"
-      Jwt__Audience: "${JWT_AUDIENCE:-FrontFacturas}"
-      Jwt__ExpiracionHoras: "${JWT_EXPIRACION_HORAS:-1}"
-    depends_on:
-      sqlserver-init:
-        condition: service_completed_successfully
-
-  # --- Interfaz Gráfica en Python (Flask + Jinja2 + Bootstrap local) ---
-  front-python:
-    build: ./front_python
-    container_name: facturas-front-python
-    ports:
-      - "8099:8096"
-      - "8096:8096"
+      - "8117:8117"
     volumes:
-      - ./front_python:/app
+      - ./api_mapa:/app
     environment:
-      # El front NO recibe credenciales de SQL Server: solo conoce la URL HTTP de la API.
-      UrlApi: "${URL_API:-http://api-facturas:8032}"
+      DB_HOST: "${DB_HOST:-mariadb}"
+      DB_PORT: "${DB_PORT:-3306}"
+      DB_NAME: "${DB_NAME:-mapa_conocimiento}"
+      DB_USER: "${DB_USER:-mapa_user}"
+      DB_PASSWORD: "${DB_PASSWORD:-MapaConocimiento2026!}"
+      JWT_SECRET: "${JWT_SECRET:-SuperClaveSecretaMapaConocimientoParaJwt2026*}"
+      JWT_ISSUER: "${JWT_ISSUER:-ApiMapaConocimiento}"
+      JWT_AUDIENCE: "${JWT_AUDIENCE:-FrontMapaConocimiento}"
+      JWT_EXPIRACION_MINUTOS: "${JWT_EXPIRACION_MINUTOS:-60}"
     depends_on:
-      - api-facturas
+      mariadb:
+        condition: service_healthy
+
+  front-flask:
+    build: ./front_flask
+    container_name: mapa-front-flask
+    restart: unless-stopped
+    ports:
+      - "8116:8116"
+    volumes:
+      - ./front_flask:/app
+    environment:
+      # El frontend NO recibe credenciales de MariaDB: solo la URL HTTP de la API.
+      URL_API: "${URL_API:-http://api-mapa:8117}"
+    depends_on:
+      - api-mapa
 
 volumes:
-  mssqldata:
+  mariadb_data:

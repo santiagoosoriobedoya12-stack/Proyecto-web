@@ -1,84 +1,44 @@
-# El paradigma de Programación Orientada a Objetos (P.O.O.) en Python
+# Paradigma de Programación Orientada a Objetos (P.O.O.) en Python
 
-> Guía conceptual para sustentación presencial sobre la arquitectura real
-> implementada en `api_python/` (`FastAPI + PyMSSQL + SQL Server`) y `front_python/` (`Flask + Jinja2`).
-
----
-
-## 1. Proyecto Multiparadigma a Propósito
-
-Python permite combinar distintos paradigmas según el nivel de responsabilidad:
-
-| Paradigma | Dónde vive en este proyecto | Ejemplo real en código |
-|---|---|---|
-| **Orientado a Objetos (P.O.O.)** | Modelos, interfaces, servicios, repositorios y excepciones | `api_python/modelos/`, `repositorios/interfaces.py`, `servicios/`, `ensamblador.py` |
-| **Imperativo / Estructurado** | Lógica secuencial, condicionales y ciclos dentro de cada método | Validación en `servicio_v1.py`, `ThreadPoolExecutor` en `front_python/app.py` |
-| **Declarativo** | Consultas SQL y esquemas de validación Pydantic | `SELECT ... WHERE` en `repositorio_v1.py`, `Field(...)` en `peticiones/esquemas.py` |
-
-```mermaid
-flowchart TB
-    subgraph PROY["api_python — Arquitectura multiparadigma"]
-        ARQ["ARQUITECTURA DE CAPAS<br/>modelos · interfaces ABC · servicios · repositorios<br/>═ P.O.O. ═"]
-        MET["DENTRO de cada método<br/>if · for · validaciones<br/>═ Imperativo / Estructurado ═"]
-        DECL["SQL parametrizado y Pydantic<br/>SELECT/EXEC · BaseModel/Field<br/>═ Declarativo ═"]
-    end
-    ARQ -->|"implementado con"| MET
-    ARQ -->|"declara datos y consultas con"| DECL
-```
+> Guía aplicada al código real del proyecto **Mapa de Conocimiento** (`api_mapa/`).
 
 ---
 
-## 2. Los Cuatro Pilares de la P.O.O. en `api_python/`
+## 1. Python Multiparadigma en este Proyecto
 
-### 2.1 Abstracción
-Definir **qué** operaciones existen ocultando **cómo** y **dónde** se almacenan los datos.  
-En [`api_python/repositorios/interfaces.py`](../api_python/repositorios/interfaces.py), las clases abstractas (`ABC` con `@abstractmethod`) fijan contratos puros: `IRepositorioProducto`, `IRepositorioCliente`, `IRepositorioFactura`, `IRepositorioAcceso`, etc.
+Al igual que en el ejemplo del curso, en `api_mapa/` conviven de forma ordenada varios paradigmas:
 
-### 2.2 Encapsulamiento
-Cada módulo protege su estado y detalles internos:
-- `RepositorioProductoSqlServer` (en `api_python/repositorios/repositorio_v1.py`) encapsula las consultas SQL, la lista blanca `_PATCH_PERMITIDOS` y el uso de `database.py` (`pymssql`).
-- Ni `controladores/` ni `servicios/` conocen cadenas de conexión ni nombres de tablas.
-- En el frontend (`front_python/servicios/cliente_api.py`), el token JWT queda encapsulado en el diccionario `SESIONES` del servidor Flask detrás de una cookie `HttpOnly`.
-
-### 2.3 Composición sobre Herencia
-El proyecto evita herencias innecesarias entre capas:
-- **Composición:** `ServicioProducto`, `ServicioCliente`, `ServicioFactura`, etc. **no heredan** de un repositorio; reciben su interfaz `IRepositorio*` por constructor (`__init__(self, repo: IRepositorioProducto)`).
-- **Herencia bien aplicada:** nuestras excepciones de dominio en [`api_python/excepciones.py`](../api_python/excepciones.py) heredan de `Exception` (`NoEncontradoExcepcion(Exception)`, `ConflictoExcepcion(Exception)`) para que `api_python/main.py` pueda capturarlas selectivamente y traducirlas a `404` / `409`.
-
-### 2.4 Polimorfismo (Contrato + Implementaciones)
-Dos clases independientes responden exactamente al mismo contrato `IRepositorioProducto`:
-1. **`RepositorioProductoSqlServer(IRepositorioProducto)`:** ejecuta `INSERT`, `SELECT`, `UPDATE`, `DELETE` parametrizados contra SQL Server 2022.
-2. **`RepositorioProductoEnMemoria(IRepositorioProducto)`:** (en [`api_python/pruebas/test_capas.py`](../api_python/pruebas/test_capas.py)) guarda las filas en un diccionario en RAM para probar `ServicioProducto` sin levantar la base de datos.
-
-```mermaid
-classDiagram
-    class IRepositorioProducto {
-        <<interface ABC>>
-        +obtener_todos(limite)
-        +obtener_por_clave(codigo)
-        +crear(codigo, nombre, stock, valorunitario)
-        +actualizar_parcial(codigo, datos)
-        +eliminar(codigo)
-    }
-    class RepositorioProductoSqlServer {
-        -_PATCH_PERMITIDOS
-        +SQL parametrizado vía PyMSSQL
-    }
-    class RepositorioProductoEnMemoria {
-        +filas: dict en RAM
-    }
-    class ServicioProducto {
-        -repo: IRepositorioProducto
-        +listar(limite)
-        +crear(pet)
-    }
-    RepositorioProductoSqlServer ..|> IRepositorioProducto : POLIMORFISMO
-    RepositorioProductoEnMemoria ..|> IRepositorioProducto : POLIMORFISMO
-    ServicioProducto o-- IRepositorioProducto : COMPOSICIÓN (por constructor)
-```
+- **Estructurado / Imperativo:** Dentro de métodos de validación o helpers SQL (`construir_update_parcial` en [`helpers_sql.py`](../api_mapa/repositorios/helpers_sql.py)).
+- **Declarativo:** En las consultas SQL parametrizadas de MariaDB y las plantillas HTML de Jinja2 en [`front_flask/templates/`](../front_flask/templates/base.html).
+- **Orientado a Objetos (P.O.O.):** Es el núcleo arquitectónico de las capas (`modelos/`, `peticiones/`, `repositorios/`, `servicios/`).
 
 ---
 
-## 3. El Ensamblador (`api_python/ensamblador.py`)
+## 2. Los 4 Pilares de P.O.O. en `api_mapa/`
 
-Siguiendo la regla de inyección de dependencias de la clase, [`api_python/ensamblador.py`](../api_python/ensamblador.py) es el **único** punto donde se instancian las clases concretas `Repositorio*SqlServer` para inyectarlas en cada `Servicio*` que consumen los controladores.
+### 2.1 Abstracción (`ABC` en `repositorios/interfaces.py`)
+Los servicios no conocen SQL, ni `pymysql`, ni `DictCursor`. Solo dependen de interfaces abstractas (`abc.ABC` con `@abstractmethod`) definidas en [`interfaces.py`](../api_mapa/repositorios/interfaces.py), por ejemplo:
+- `IRepositorioProyecto`
+- `IRepositorioDocente`
+- `IRepositorioProducto`
+- `IRepositorioDesarrolla`
+- `IRepositorioUsuario`
+
+### 2.2 Encapsulamiento (`modelos/entidades.py` y `excepciones.py`)
+- Las 21 entidades de dominio y `Sesion` viven como `@dataclass` en [`entidades.py`](../api_mapa/modelos/entidades.py) y exponen `.a_dict()` (sin exponer `password_hash` en `Usuario`).
+- El detalle de conexión, transacciones y el flag `CLIENT.FOUND_ROWS` (para que un `PUT` idempotente cuente la fila encontrada aunque los valores no cambien) queda encapsulado en [`database.py`](../api_mapa/database.py).
+
+### 2.3 Composición sobre Herencia (`servicios/` y `ensamblador.py`)
+Los servicios (`ServicioProyecto`, `ServicioDocente`, `ServicioProducto`, `ServicioUsuario`, `ServicioLogin`, etc.) **reciben por constructor** sus repositorios abstractos (`IRepositorio*`).
+Por ejemplo, `ServicioDocente` recibe tanto `IRepositorioDocente` como `IRepositorioLineaInvestigacion` para verificar antes de guardar que la línea de investigación exista y esté activa (`activo = 1`).
+[`ensamblador.py`](../api_mapa/ensamblador.py) es el único archivo donde se instancian las implementaciones concretas (`Repositorio*MariaDB`) y se inyectan en cada servicio.
+
+### 2.4 Polimorfismo Real (MariaDB vs Memoria en Pruebas)
+Como los servicios solo esperan `IRepositorio*`, podemos sustituir el motor MariaDB por repositorios en memoria sin modificar una sola línea de lógica de negocio. En [`pruebas/test_capas.py`](../api_mapa/pruebas/test_capas.py) se implementan:
+- `RepositorioProyectoEnMemoria(IRepositorioProyecto)`
+- `RepositorioLineaEnMemoria(IRepositorioLineaInvestigacion)`
+- `RepositorioTipoProductoEnMemoria(IRepositorioTipoProducto)`
+- `RepositorioProductoEnMemoria(IRepositorioProducto)`
+- `RepositorioUsuarioEnMemoria(IRepositorioUsuario)`
+
+Gracias al polimorfismo, las pruebas unitarias verifican creación, reemplazo idempotente, borrado lógico, validación de claves foráneas (`409`) y hashing BCrypt en milisegundos sin requerir MariaDB levantada.

@@ -1,0 +1,13 @@
+# Framework web ASGI con validación Pydantic y Swagger OpenAPI en /swagger
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic[email]==2.10.4
+# Driver Python puro para MariaDB / MySQL con consultas parametrizadas (%s)
+pymysql==1.1.1
+cryptography==44.0.0
+# Seguridad Versión 3: JWT HS256 y hashing BCrypt de contraseñas
+PyJWT==2.10.1
+bcrypt==4.2.1
+# Pruebas unitarias y HTTP
+httpx==0.28.1
+pytest==8.3.4

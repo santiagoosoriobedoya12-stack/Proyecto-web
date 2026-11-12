@@ -1,24 +1,35 @@
-# Principios SOLID, Capas y Patrones Aplicados
-
-> Cómo se reflejan los 5 principios **SOLID** y el patrón **Repository + Dependency Injection** en `api_python/` y `front_python/`.
+# Principios SOLID, Capas y Patrones en Mapa de Conocimiento
 
 ---
 
-## 1. Aplicación de SOLID en el proyecto Python
+## 1. Arquitectura en Capas (De Arriba hacia Abajo)
 
-| Principio | Cómo se aplica en nuestro código | Archivo donde verlo |
-|---|---|---|
-| **S — Responsabilidad Única (SRP)** | Cada capa tiene un único motivo de cambio: HTTP en controladores, reglas en servicios, SQL en repositorios, validación de entrada en Pydantic y errores HTTP en `main.py`. | `controladores/`, `servicios/`, `repositorios/`, `main.py` |
-| **O — Abierto/Cerrado (OCP)** | Nuevos recursos (v2) y seguridad transversal (v3) se agregaron sin modificar ni romper los contratos previos de v1. | `controlador_v1.py`, `controlador_v2.py`, `autorizacion/dependencias.py` |
-| **L — Sustitución de Liskov (LSP)** | Cualquier clase que implemente `IRepositorioProducto` (`RepositorioProductoSqlServer` o `RepositorioProductoEnMemoria`) sustituye a la interfaz sin alterar el comportamiento de `ServicioProducto`. | `repositorios/interfaces.py`, `pruebas/test_capas.py` |
-| **I — Segregación de Interfaces (ISP)** | Existe una interfaz pequeña por entidad (`IRepositorioProducto`, `IRepositorioFactura`, `IRepositorioAcceso`) en vez de una macro-interfaz genérica con métodos innecesarios. En Pydantic, cada verbo tiene su propio esquema (`Crear`, `Reemplazo`, `Actualizar`). | `repositorios/interfaces.py`, `peticiones/esquemas.py` |
-| **D — Inversión de Dependencias (DIP)** | Los módulos de alto nivel (`servicios/`) dependen de abstracciones (`IRepositorio*`), nunca de clases concretas de PyMSSQL. El cableado ocurre únicamente en `ensamblador.py`. | `servicios/*.py`, `ensamblador.py` |
+| Capa | Carpeta / Archivo | Responsabilidad única | Lo que NUNCA hace |
+| :--- | :--- | :--- | :--- |
+| **Presentación Web** | [`front_flask/`](../front_flask/app.py) | Renderizar Jinja2, guardar sesión `mapa_sid` y llamar a `api-mapa` por `httpx` | Importar `pymysql` o conectarse a MariaDB |
+| **Controladores REST** | [`api_mapa/controladores/`](../api_mapa/controladores/controlador_v1.py) | Enrutar HTTP explícito (`/api/...`), dependencias JWT/roles y códigos HTTP | Escribir SQL o lógica de negocio |
+| **Peticiones (DTOs)** | [`api_mapa/peticiones/esquemas.py`](../api_mapa/peticiones/esquemas.py) | Validar estructura de entrada por verbo HTTP (`422`) | Mezclar DTOs de creación y parcheo |
+| **Servicios** | [`api_mapa/servicios/`](../api_mapa/servicios/servicio_v1.py) | Reglas de negocio, validación de FK activas y coordinación de repositorios | Conocer `FastAPI`, `HTTP` o SQL |
+| **Repositorios** | [`api_mapa/repositorios/`](../api_mapa/repositorios/repositorio_v1.py) | SQL parametrizado en MariaDB o almacenamiento en memoria, filtro `activo = 1` | Devolver `JSONResponse` o reglas de autorización |
+| **Modelos** | [`api_mapa/modelos/entidades.py`](../api_mapa/modelos/entidades.py) | Entidades de dominio POO (`@dataclass`) para las 21 tablas + `Sesion` | Contener lógica de transporte HTTP |
 
 ---
 
-## 2. Patrones clave visibles en sustentación
+## 2. Principios SOLID Aplicados
 
-1. **Repository Pattern + Interfaces `ABC`:** desacopla el motor SQL Server 2022 del dominio Python.
-2. **Dependency Injection (Manual Assembler):** `ensamblador.py` crea las instancias concretas e inyecta los contratos por constructor.
-3. **DTO Segregados por Verbo:** `POST` (*Crear*), `PUT` (*Reemplazo completo*), `PATCH` (*Actualizar parcial*).
-4. **Server-Side Session + HttpOnly Cookie (Frontend Flask):** el token JWT vive en memoria del servidor Flask (`SESIONES` en `cliente_api.py`), protegido contra lectura por JavaScript (XSS).
+- **S — Responsabilidad Única:** Cada archivo cumple una sola función (`config.py` lee entorno, `excepciones.py` define errores de dominio, `semilla.py` siembra usuarios, `ensamblador.py` conecta capas).
+- **O — Abierto/Cerrado:** Cambiar o agregar otro motor de base de datos o un repositorio en memoria para pruebas solo requiere implementar las interfaces de [`interfaces.py`](../api_mapa/repositorios/interfaces.py) y cambiar la inyección en [`ensamblador.py`](../api_mapa/ensamblador.py), sin tocar servicios ni controladores.
+- **L — Sustitución de Liskov:** `RepositorioProyectoEnMemoria` sustituye a `RepositorioProyectoMariaDB` en [`pruebas/test_capas.py`](../api_mapa/pruebas/test_capas.py) cumpliendo exactamente el contrato `IRepositorioProyecto` (incluidas excepciones `NoEncontradoExcepcion` y `ConflictoExcepcion`).
+- **I — Segregación de Interfaces y Esquemas:**
+  - Interfaces separadas por agregado (`IRepositorioDocente`, `IRepositorioDesarrolla`, `IRepositorioPuente`, etc.).
+  - Esquemas Pydantic segregados por operación: `*Crear` (`POST`), `*Reemplazo` (`PUT`) y `*Actualizar` (`PATCH`).
+- **D — Inversión de Dependencias:** Los servicios dependen de abstracciones (`IRepositorio*`), nunca de clases concretas (`Repositorio*MariaDB`).
+
+---
+
+## 3. Patrones Aplicados
+
+1. **Repository Pattern + Dependency Injection:** Desacopla el dominio del motor MariaDB y permite pruebas unitarias sin base de datos.
+2. **Composition Root (`ensamblador.py`):** Centraliza la creación del grafo de dependencias en un único módulo.
+3. **Router Factory explícito (`_crear_router_puente`) / Ops explícitas:** Evita rutas comodín inseguras (`/{tabla}`) manteniendo los prefijos REST declarados por recurso.
+4. **Logical Delete (Soft Delete):** Todas las tablas del módulo y seguridad conservan el histórico (`activo = 0`) con `CLIENT.FOUND_ROWS` en PyMySQL para idempotencia de `PUT`.
