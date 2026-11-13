@@ -18,6 +18,7 @@ Cada versión crece sobre la anterior sin romperla, con su API REST, su interfaz
 
 ## 2. Documentación y Guías del Curso
 
+- [Diagrama Entidad-Relación (DER) de las 21 Tablas (`docs/DER.md`)](docs/DER.md): Modelo entidad-relación en Mermaid con las 21 tablas, atributos, tipos y cardinalidades.
 - [Documento Maestro de Arquitectura (`docs/README.md`)](docs/README.md): Mapa de las 21 tablas, puertos y matriz de roles.
 - [Guía de Retroalimentación y Sustentación (`docs/RETROALIMENTACION_Y_SUSTENTACION.md`)](docs/RETROALIMENTACION_Y_SUSTENTACION.md): Decisiones de diseño y respuestas técnicas para la sustentación.
 - [Paradigma P.O.O. en Python (`docs/PARADIGMA_POO.md`)](docs/PARADIGMA_POO.md): Abstracción (`ABC`), encapsulamiento, composición sobre herencia y polimorfismo en memoria vs MariaDB.

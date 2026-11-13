@@ -1,6 +1,6 @@
 # Documento Maestro de Arquitectura — Mapa de Conocimiento
 
-Este proyecto implementa en **Python puro** el módulo **Mapa de Conocimiento** (`mapa_conocimiento`, **21 tablas**) siguiendo la arquitectura de capas, el paradigma orientado a objetos y el desarrollo incremental por versiones ($v1 \subset v2 \subset v3$).
+Este proyecto implementa en **Python puro** el módulo **Mapa de Conocimiento** (`mapa_conocimiento`, **21 tablas**) siguiendo la arquitectura de capas, el paradigma orientado a objetos y el desarrollo incremental por versiones ($v1 \subset v2 \subset v3$). El diagrama entidad-relación detallado se encuentra en [DER.md](DER.md).
 
 ---
 

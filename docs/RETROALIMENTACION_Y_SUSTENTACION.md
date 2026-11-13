@@ -33,3 +33,40 @@ En [`servicio_v2.py`](../api_mapa/servicios/servicio_v2.py), antes de insertar o
 2. **Si abren [`ensamblador.py`](../api_mapa/ensamblador.py):** explica que es el *Composition Root* (patrón Inyección de Dependencias sin frameworks mágicos).
 3. **Si abren [`app.py`](../front_flask/app.py):** explica las rutas explícitas de las 21 vistas, el `ThreadPoolExecutor` para catálogos foráneos en paralelo y el manejo de `401`/`403`/error de conexión.
 4. **Si abren [`db/init.sql`](../db/init.sql):** señala las 21 tablas originales del caso + la columna `activo` para borrado lógico y los 17 ODS semilla.
+
+---
+
+## 3. Guion de Demostración en Vivo (Paso a Paso en 5 Minutos)
+
+Para la sustentación presencial o por videollamada, este es el orden ideal para demostrar el funcionamiento completo del sistema:
+
+### Paso 1: Levantar los 4 servicios con Docker
+```powershell
+docker compose up -d
+docker compose ps
+```
+Mostrar que los 4 contenedores están `healthy`/`Up`:
+- `mariadb` (puerto `13333`)
+- `phpmyadmin` (puerto `8108` -> abrir <http://localhost:8108> y mostrar las 21 tablas)
+- `api-mapa` (puerto `8117` -> abrir <http://localhost:8117/swagger>)
+- `front-flask` (puerto `8116` -> abrir <http://localhost:8116>)
+
+### Paso 2: Demostrar las Pruebas Unitarias de Capas (sin tocar BD)
+```powershell
+docker compose exec api-mapa pytest pruebas/test_capas.py -v
+```
+Mostrar que pasan el 100% de las pruebas usando los repositorios polimórficos en memoria (`RepositorioProyectoEnMemoria`, `RepositorioProductoEnMemoria`, `RepositorioUsuarioEnMemoria`).
+
+### Paso 3: Demostrar Seguridad y Roles en el Frontend Flask (`localhost:8116`)
+1. Abrir `/sesion` e ingresar con **`consulta` / `consulta123`**:
+   - Entrar a `/proyectos` o `/docentes`: mostrar que **los botones de crear, editar y retirar están ocultos** para este rol (modo solo lectura).
+2. Cerrar sesión e ingresar con **`investigador` / `inv123`**:
+   - Entrar a `/proyectos`: los botones de edición aparecen y puede crear/modificar proyectos.
+   - Intentar entrar a `/usuarios`: la vista no aparece en la barra superior o devuelve HTTP `403`.
+3. Cerrar sesión e ingresar con **`admin` / `admin123`**:
+   - Se activa el menú **v3 Administración** con acceso completo a `/usuarios`, `/roles` y `/roles-usuario`.
+
+### Paso 4: Demostrar las Reglas Clave en Swagger (`localhost:8117/swagger`)
+1. **Borrado Lógico:** Realizar `DELETE /api/proyecto/1`. Da `204 No Content`. Si se repite inmediatamente el mismo `DELETE`, devuelve **`404 Not Found`** porque ya tenía `activo = 0`.
+2. **Validación de FKs (409 Conflict):** En `POST /api/producto`, enviar un `proyecto` que no existe (ej. `99999`) o inactivo. La API devuelve **HTTP `409 Conflict`** explicando que el padre referenciado no está activo.
+3. **Idempotencia de PUT:** En `PUT /api/proyecto/1`, enviar los mismos datos sin cambios. Gracias a `CLIENT.FOUND_ROWS`, la API devuelve `200 OK` en vez de un falso `404`.
