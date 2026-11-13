@@ -36,7 +36,41 @@ Diseña una arquitectura en capas estricta para el módulo Mapa de Conocimiento 
 
 ---
 
-## 2. Prompts Específicos por Tabla de Versión 1
+## 2. Prompts de Generación del Spec Kit (Documentos 2 a 8)
+
+### Prompt para `2_spec.md` (Especificación Formal)
+```text
+Genera la especificación formal 2_spec.md para la Versión 1 de Mapa de Conocimiento:
+- Define los requisitos funcionales RF1 (Listar), RF2 (Obtener por clave), RF3 (Crear con 201), RF4 (Reemplazar con 200), RF5 (Actualizar con 200/400), RF6 (Eliminar lógico con 204/404) y RF7 (Frontend Flask).
+- Establece la regla inmutable de borrado lógico activo = 1/0.
+- Detalla los requisitos no funcionales RNF1 (Capas estrictas), RNF2 (SQL parametrizado %s), RNF3 (Aislamiento de Flask), RNF4 (DTOs segregados).
+```
+
+### Prompt para `3_plan.md` y `4_research.md` (Plan Técnico e Investigación)
+```text
+Genera 3_plan.md y 4_research.md justificando las decisiones de arquitectura:
+- Justifica la elección de PyMySQL directo con DictCursor en lugar de ORMs pesados.
+- Explica la necesidad de activar client_flag=CLIENT.FOUND_ROWS para evitar falsos 404 en PUT idempotente.
+- Detalla la estrategia de DTOs segregados con Pydantic v2 (Crear, Reemplazo, Actualizar).
+```
+
+### Prompt para `5_data_model.md` y `6_contracts.md` (Modelo y Contratos REST)
+```text
+Genera 5_data_model.md y 6_contracts.md para las 8 tablas de la v1:
+- Detalla nombres de columna, tipos de datos, claves primarias y la columna activo.
+- Define el contrato HTTP exacto: prefijo /api/..., sobre { tabla, limite, total, datos }, códigos HTTP estándar (200, 201, 204, 400, 404, 409, 422, 500) y ejemplos de payload.
+```
+
+### Prompt para `7_quickstart.md` y `8_tasks.md` (Puesta en Marcha y Tareas)
+```text
+Genera 7_quickstart.md y 8_tasks.md:
+- Guía de ejecución con Docker Compose y pruebas automáticas con pytest pruebas/test_capas.py.
+- Checklist de tareas desglosadas de T1.1 a T1.11 marcadas como completadas.
+```
+
+---
+
+## 3. Prompts Específicos por Tabla de Versión 1
 
 ### Tabla 1: `area_conocimiento`
 ```text

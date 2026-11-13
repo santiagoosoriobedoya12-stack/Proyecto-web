@@ -23,7 +23,42 @@ Actúa como un experto en ciberseguridad, Python 3.12 y MariaDB.
 
 ---
 
-## 2. Prompt del Servicio de Autenticación y Token JWT
+## 2. Prompts de Generación del Spec Kit (Documentos 2 a 8)
+
+### Prompt para `2_spec.md` (Especificación Formal v3)
+```text
+Genera la especificación formal 2_spec.md para la Versión 3:
+- Detalla los requisitos funcionales de autenticación con JWT (POST /api/login).
+- Especifica la matriz de roles RBAC: Administrador (total), Investigador (CRUD módulo), Consulta (solo lectura GET).
+- Define la frontera de seguridad 401 Unauthorized vs 403 Forbidden.
+- Especifica el almacenamiento seguro del JWT en servidor Flask mediante cookies HttpOnly (cero localStorage).
+```
+
+### Prompt para `3_plan.md` y `4_research.md` (Plan Técnico e Investigación)
+```text
+Genera 3_plan.md y 4_research.md para la Versión 3:
+- Justifica la elección de PyJWT y bcrypt sobre otras alternativas.
+- Analiza la vulnerabilidad XSS de localStorage frente a cookies HttpOnly y justifica la arquitectura elegida.
+- Explica la verificación de roles en tiempo real consultando la base de datos para revocación inmediata de acceso.
+```
+
+### Prompt para `5_data_model.md` y `6_contracts.md` (Modelo y Contratos REST)
+```text
+Genera 5_data_model.md y 6_contracts.md para la v3:
+- Especifica las 3 tablas de seguridad (rol, usuario, rol_usuario) con password_hash y borrado lógico activo.
+- Define el contrato de POST /api/login, GET /api/permisos/mios y los CRUDs administrativos de usuarios y roles.
+```
+
+### Prompt para `7_quickstart.md` y `8_tasks.md` (Puesta en Marcha y Tareas)
+```text
+Genera 7_quickstart.md y 8_tasks.md para la v3:
+- Pasos para probar los 3 roles en el frontend y en Swagger.
+- Checklist de tareas de T3.1 a T3.11 marcadas como completadas.
+```
+
+---
+
+## 3. Prompt del Servicio de Autenticación y Token JWT
 
 ```text
 Implementa el módulo de autenticación de la Versión 3 en FastAPI:

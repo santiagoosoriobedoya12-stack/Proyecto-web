@@ -30,7 +30,41 @@ Implementa el crecimiento sobre la versión 1 (v1 ⊂ v2) para las 10 tablas con
 
 ---
 
-## 2. Prompts Específicos por Tabla de Versión 2
+## 2. Prompts de Generación del Spec Kit (Documentos 2 a 8)
+
+### Prompt para `2_spec.md` (Especificación Formal v2)
+```text
+Genera la especificación formal 2_spec.md para la Versión 2 de Mapa de Conocimiento:
+- Detalla los requerimientos funcionales para docente, producto, participa (desarrolla) y las 7 tablas puente M:N.
+- Formaliza la regla de negocio de integridad: cualquier FK debe pertenecer a un padre existente con activo = 1; de lo contrario responde HTTP 409 Conflict.
+- Establece la concurrencia en Flask con ThreadPoolExecutor como requisito no funcional.
+```
+
+### Prompt para `3_plan.md` y `4_research.md` (Plan Técnico e Investigación)
+```text
+Genera 3_plan.md y 4_research.md para la Versión 2:
+- Diseña el repositorio puente parametrizado RepositorioPuenteMariaDB e IRepositorioPuente para evitar código duplicado en las 7 tablas M:N.
+- Justifica el uso de ThreadPoolExecutor para resolver la latencia en formularios con múltiples catálogos foráneos.
+- Documenta las singularidades del DDL oficial (ej. columna 'nacionalidaad').
+```
+
+### Prompt para `5_data_model.md` y `6_contracts.md` (Modelo y Contratos REST)
+```text
+Genera 5_data_model.md y 6_contracts.md para las 10 tablas de la v2:
+- Especifica las claves primarias compuestas en MariaDB y la columna activo = 1.
+- Define los contratos de endpoints para docente (/api/docente), producto (/api/producto), desarrolla (/api/desarrolla) y las 7 tablas puente, detallando los códigos 200, 201, 204, 404 y 409.
+```
+
+### Prompt para `7_quickstart.md` y `8_tasks.md` (Puesta en Marcha y Tareas)
+```text
+Genera 7_quickstart.md y 8_tasks.md para la v2:
+- Pasos de verificación rápida con navegador y Swagger.
+- Checklist de tareas de T2.1 a T2.10 marcadas como completadas.
+```
+
+---
+
+## 3. Prompts Específicos por Tabla de Versión 2
 
 ### Tabla 9: `docente` (FK a `linea_investigacion`)
 ```text
