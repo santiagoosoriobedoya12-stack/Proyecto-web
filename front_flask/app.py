@@ -411,4 +411,6 @@ for _rec in CRUD_VISTAS:
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8116, debug=True)
+    import os
+    puerto = int(os.getenv("PORT", "8116"))
+    app.run(host="0.0.0.0", port=puerto, debug=False)

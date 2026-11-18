@@ -2,9 +2,12 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0
 pydantic[email]==2.10.4
-# Driver Python puro para MariaDB / MySQL con consultas parametrizadas (%s)
+# Drivers de Base de Datos: PostgreSQL (Producción / Render / Supabase) y MariaDB (Local Docker)
+psycopg2-binary==2.9.10
 pymysql==1.1.1
 cryptography==44.0.0
+# Servidor WSGI/ASGI para producción en la nube
+gunicorn==23.0.0
 # Seguridad Versión 3: JWT HS256 y hashing BCrypt de contraseñas
 PyJWT==2.10.1
 bcrypt==4.2.1

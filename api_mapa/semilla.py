@@ -31,10 +31,11 @@ def asegurar_usuarios_semilla() -> None:
                 # Si la contraseña sembrada por SQL aún no corresponde a BCrypt estándar local, la normaliza
                 if not str(existente.get("password", "")).startswith("$2b$12$"):
                     ejecutar_dml("UPDATE usuario SET password = %s, activo = 1 WHERE id = %s", (pwd_hash, usr_id))
-            ejecutar_dml(
-                "INSERT IGNORE INTO rol_usuario (usuario_id, rol_id) VALUES (%s, %s)",
-                (usr_id, rol_id),
-            )
+            if not consultar_fila("SELECT 1 FROM rol_usuario WHERE usuario_id = %s AND rol_id = %s", (usr_id, rol_id)):
+                ejecutar_dml(
+                    "INSERT INTO rol_usuario (usuario_id, rol_id) VALUES (%s, %s)",
+                    (usr_id, rol_id),
+                )
     except Exception:
         # Si la base aún está iniciando, la prueba de salud o siguiente petición continuará
         pass

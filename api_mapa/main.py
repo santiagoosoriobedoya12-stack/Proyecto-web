@@ -39,6 +39,7 @@ from excepciones import (
     SinPermisoExcepcion,
     ValidacionNegocioExcepcion,
 )
+from config import DB_ENGINE
 from semilla import asegurar_usuarios_semilla
 
 
@@ -99,7 +100,7 @@ def diagnostico_raiz():
     return {
         "mensaje": "API Mapa de Conocimiento funcionando",
         "version": "v3",
-        "stack": "Python / FastAPI + MariaDB",
+        "stack": f"Python / FastAPI + {'PostgreSQL' if DB_ENGINE == 'postgres' else 'MariaDB'}",
         "tablas": 21,
     }
 
@@ -132,3 +133,11 @@ for r in (
     router_rol_usuario,
 ):
     app.include_router(r)
+
+
+if __name__ == "__main__":
+    import os
+    import uvicorn
+    puerto = int(os.getenv("PORT", "8117"))
+    uvicorn.run("main:app", host="0.0.0.0", port=puerto, reload=False)
+

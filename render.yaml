@@ -1,0 +1,46 @@
+databases:
+  - name: mapa-db-postgres
+    databaseName: mapa_conocimiento
+    user: mapa_user
+    plan: free
+    region: oregon
+
+services:
+  - type: web
+    name: mapa-conocimiento-api
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: api_mapa
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mapa-db-postgres
+          property: connectionString
+      - key: DB_ENGINE
+        value: postgres
+      - key: JWT_SECRET
+        value: SuperClaveSecretaMapaConocimientoParaJwt2026*
+      - key: JWT_ISSUER
+        value: ApiMapaConocimiento
+      - key: JWT_AUDIENCE
+        value: FrontMapaConocimiento
+      - key: JWT_EXPIRACION_MINUTOS
+        value: "240"
+
+  - type: web
+    name: mapa-conocimiento-front
+    runtime: python
+    plan: free
+    region: oregon
+    rootDir: front_flask
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -b 0.0.0.0:$PORT app:app
+    envVars:
+      - key: API_BASE_URL
+        fromService:
+          type: web
+          name: mapa-conocimiento-api
+          property: host

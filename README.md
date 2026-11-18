@@ -1,6 +1,28 @@
 # Proyecto de Aula — Módulo: Mapa de Conocimiento
 
-Sistema integral de información para gestionar proyectos de investigación, docentes, productos académicos, alianzas externas y taxonomías del módulo **Mapa de Conocimiento** (**21 tablas**: 18 del módulo + 3 de gestión de usuarios). Desarrollado **100% en Python** bajo la **metodología SDD incremental acumulativa** de 3 versiones ($v1 \subset v2 \subset v3$), con API REST (**FastAPI + PyMySQL + PyJWT + BCrypt**), Frontend Web (**Flask + Jinja2 + httpx + Bootstrap local**) y Base de Datos (**MariaDB 11.4 + phpMyAdmin**) orquestados con **Docker Compose**.
+Sistema integral de información para gestionar proyectos de investigación, docentes, productos académicos, alianzas externas y taxonomías del módulo **Mapa de Conocimiento** (**21 tablas**: 18 del módulo + 3 de gestión de usuarios). Desarrollado **100% en Python** bajo la **metodología SDD incremental acumulativa** de 3 versiones ($v1 \subset v2 \subset v3$), con API REST (**FastAPI + PostgreSQL / MariaDB + PyJWT + BCrypt**) y Frontend Web (**Flask + Jinja2 + httpx + Bootstrap local**).
+
+---
+
+## 👥 Integrante del Proyecto
+
+| Nombre Completo | Rol en el Proyecto | Usuario GitHub |
+| :--- | :--- | :--- |
+| **Santiago Osorio Bedoya** | Autor y Desarrollador Único (Backend FastAPI, Frontend Flask, Base de Datos PostgreSQL) | [@santiagoosoriobedoya12-stack](https://github.com/santiagoosoriobedoya12-stack) |
+
+---
+
+## 🌐 Enlaces de Despliegue en la Nube (Producción)
+
+> **Para el docente / evaluador:** Utilice las siguientes credenciales para acceder y navegar en el aplicativo:
+> - **Usuario:** `admin`
+> - **Contraseña:** `admin123`
+> - **Rol:** `Administrador` (acceso completo a las 21 tablas y administración de usuarios)
+
+* **URL Frontend Web (Flask):** `[INSERTAR_AQUI_URL_FRONT_EJ_RENDER]`
+* **URL API REST / Swagger (FastAPI):** `[INSERTAR_AQUI_URL_API_EJ_RENDER]/swagger`
+* **Base de Datos en la Nube:** PostgreSQL 16 (Script DDL en [`db/init_postgres.sql`](db/init_postgres.sql))
+* **Guía de Despliegue Paso a Paso:** [docs/DESPLIEGUE_NUBE_RENDER.md](docs/DESPLIEGUE_NUBE_RENDER.md)
 
 ---
 

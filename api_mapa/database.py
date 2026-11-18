@@ -1,46 +1,89 @@
 # ==============================================================
-# CONEXIÓN A MARIADB / MYSQL VÍA PYMYSQL (CAPA DE INFRAESTRUCTURA)
-# Nota crítica (§guía v1): Se activa CLIENT.FOUND_ROWS para que las sentencias
-# UPDATE retornen las filas COINCIDENTES y no solo las modificadas (evita 404
-# falso en PUT idempotente con los mismos valores).
+# CONEXIÓN A BASE DE DATOS (HÍBRIDO POSTGRESQL + MARIADB / MYSQL)
+# - En la nube (Render / Supabase / Neon): usa PostgreSQL vía psycopg2 con RealDictCursor.
+# - En local (Docker Compose): usa MariaDB vía pymysql con DictCursor y CLIENT.FOUND_ROWS.
+# - Traduce códigos de error nativos (PostgreSQL 23505 -> 1062, 23503 -> 1452) para
+#   que los repositorios sigan funcionando sin modificar su lógica de negocio.
 # ==============================================================
 
 from contextlib import contextmanager
 from datetime import date, datetime
 from decimal import Decimal
-import pymysql
-from pymysql.constants import CLIENT
-from pymysql.cursors import DictCursor
-from config import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+from config import (
+    DATABASE_URL,
+    DB_ENGINE,
+    DB_HOST,
+    DB_NAME,
+    DB_PASSWORD,
+    DB_PORT,
+    DB_USER,
+)
 
 
 @contextmanager
 def obtener_conexion():
-    """Abre conexión MariaDB con DictCursor + FOUND_ROWS y la cierra al salir."""
-    conexion = pymysql.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        user=DB_USER,
-        password=DB_PASSWORD,
-        database=DB_NAME,
-        charset="utf8mb4",
-        cursorclass=DictCursor,
-        client_flag=CLIENT.FOUND_ROWS,
-        autocommit=True,
-    )
-    try:
-        yield conexion
-    finally:
-        conexion.close()
+    """Abre conexión con cursor tipo diccionario según el motor configurado."""
+    if DB_ENGINE == "postgres":
+        import psycopg2
+        import psycopg2.extras
+
+        if DATABASE_URL:
+            conexion = psycopg2.connect(
+                DATABASE_URL,
+                cursor_factory=psycopg2.extras.RealDictCursor,
+            )
+        else:
+            conexion = psycopg2.connect(
+                host=DB_HOST,
+                port=DB_PORT,
+                user=DB_USER,
+                password=DB_PASSWORD,
+                dbname=DB_NAME,
+                cursor_factory=psycopg2.extras.RealDictCursor,
+            )
+        conexion.autocommit = True
+        try:
+            yield conexion
+        finally:
+            conexion.close()
+    else:
+        import pymysql
+        from pymysql.constants import CLIENT
+        from pymysql.cursors import DictCursor
+
+        conexion = pymysql.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME,
+            charset="utf8mb4",
+            cursorclass=DictCursor,
+            client_flag=CLIENT.FOUND_ROWS,
+            autocommit=True,
+        )
+        try:
+            yield conexion
+        finally:
+            conexion.close()
 
 
 def extraer_codigo_mysql(ex: Exception) -> int | None:
     """
-    Extrae el código de error nativo de MySQL/MariaDB:
-      - 1062: Duplicate entry (PK o UNIQUE repetido)
-      - 1452: Cannot add or update a child row (FK padre no existe)
-      - 1451: Cannot delete or update a parent row (tiene hijos asociados)
+    Extrae o unifica el código de error SQL:
+      - 1062: Duplicate entry (PostgreSQL 23505)
+      - 1452 / 1451: Conflicto de clave foránea (PostgreSQL 23503)
     """
+    # Si viene de PostgreSQL (psycopg2)
+    pgcode = getattr(ex, "pgcode", None)
+    if pgcode:
+        if pgcode == "23505":
+            return 1062  # unique_violation
+        if pgcode in ("23503", "23502"):
+            return 1452  # foreign_key_violation / not_null_violation
+        return None
+
+    # Si viene de MariaDB / MySQL (pymysql)
     if hasattr(ex, "args") and len(ex.args) > 0 and isinstance(ex.args[0], int):
         return ex.args[0]
     return None
@@ -71,7 +114,8 @@ def consultar_filas(sql: str, params: tuple = ()) -> list[dict]:
     with obtener_conexion() as conn:
         with conn.cursor() as cur:
             cur.execute(sql, params)
-            return normalizar_filas(cur.fetchall())
+            filas = cur.fetchall()
+            return normalizar_filas(filas)
 
 
 def consultar_fila(sql: str, params: tuple = ()) -> dict | None:
@@ -79,7 +123,8 @@ def consultar_fila(sql: str, params: tuple = ()) -> dict | None:
     with obtener_conexion() as conn:
         with conn.cursor() as cur:
             cur.execute(sql, params)
-            return normalizar_fila(cur.fetchone())
+            fila = cur.fetchone()
+            return normalizar_fila(fila)
 
 
 def ejecutar_dml(sql: str, params: tuple = ()) -> int:
@@ -90,9 +135,20 @@ def ejecutar_dml(sql: str, params: tuple = ()) -> int:
             return cur.rowcount
 
 
-def ejecutar_insert_autoincrement(sql: str, params: tuple = ()) -> int:
-    """Ejecuta INSERT en tabla AUTO_INCREMENT y retorna el nuevo ID generado."""
+def ejecutar_insert_autoincrement(sql: str, params: tuple = (), col_id: str = "id") -> int:
+    """
+    Ejecuta INSERT en tabla autoincremental y retorna el nuevo ID generado.
+    Soporta MariaDB (cur.lastrowid) y PostgreSQL (RETURNING id).
+    """
     with obtener_conexion() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, params)
-            return int(cur.lastrowid)
+            if DB_ENGINE == "postgres":
+                sql_ret = f"{sql.rstrip(';')} RETURNING {col_id};"
+                cur.execute(sql_ret, params)
+                res = cur.fetchone()
+                if isinstance(res, dict):
+                    return int(res[col_id])
+                return int(res[0])
+            else:
+                cur.execute(sql, params)
+                return int(cur.lastrowid)
