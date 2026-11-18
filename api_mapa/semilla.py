@@ -4,8 +4,30 @@
 # hashes BCrypt costo 12 reales sin almacenar contraseñas planas en SQL.
 # ==============================================================
 
-from database import consultar_fila, ejecutar_dml, ejecutar_insert_autoincrement
+import os
+from database import consultar_fila, ejecutar_dml, ejecutar_insert_autoincrement, obtener_conexion
 from servicios.servicio_v1 import hashear_password
+
+
+def asegurar_esquema_inicial() -> None:
+    """Si la base de datos es PostgreSQL y está vacía, ejecuta db_init.sql automáticamente."""
+    from config import DB_ENGINE
+    if DB_ENGINE != "postgres":
+        return
+    try:
+        fila = consultar_fila(
+            "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'area_conocimiento'"
+        )
+        if not fila:
+            ruta_sql = os.path.join(os.path.dirname(__file__), "db_init.sql")
+            if os.path.exists(ruta_sql):
+                with open(ruta_sql, "r", encoding="utf-8") as f:
+                    contenido_sql = f.read()
+                with obtener_conexion() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(contenido_sql)
+    except Exception:
+        pass
 
 
 _CUENTAS_INICIALES = [

@@ -40,11 +40,12 @@ from excepciones import (
     ValidacionNegocioExcepcion,
 )
 from config import DB_ENGINE
-from semilla import asegurar_usuarios_semilla
+from semilla import asegurar_esquema_inicial, asegurar_usuarios_semilla
 
 
 @asynccontextmanager
 async def ciclo_vida(_app: FastAPI):
+    asegurar_esquema_inicial()
     asegurar_usuarios_semilla()
     yield
 

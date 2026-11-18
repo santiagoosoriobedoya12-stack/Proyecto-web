@@ -19,8 +19,9 @@ Sistema integral de información para gestionar proyectos de investigación, doc
 > - **Contraseña:** `admin123`
 > - **Rol:** `Administrador` (acceso completo a las 21 tablas y administración de usuarios)
 
-* **URL Frontend Web (Flask):** `[INSERTAR_AQUI_URL_FRONT_EJ_RENDER]`
-* **URL API REST / Swagger (FastAPI):** `[INSERTAR_AQUI_URL_API_EJ_RENDER]/swagger`
+* **URL Frontend Web (Flask):** [https://mapa-conocimiento-front.onrender.com](https://mapa-conocimiento-front.onrender.com)
+* **URL API REST / Swagger (FastAPI):** [https://mapa-conocimiento-api.onrender.com/swagger](https://mapa-conocimiento-api.onrender.com/swagger)
+* **URL Raíz API REST:** [https://mapa-conocimiento-api.onrender.com](https://mapa-conocimiento-api.onrender.com)
 * **Base de Datos en la Nube:** PostgreSQL 16 (Script DDL en [`db/init_postgres.sql`](db/init_postgres.sql))
 * **Guía de Despliegue Paso a Paso:** [docs/DESPLIEGUE_NUBE_RENDER.md](docs/DESPLIEGUE_NUBE_RENDER.md)
 

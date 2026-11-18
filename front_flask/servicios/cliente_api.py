@@ -9,7 +9,9 @@ import os
 import secrets
 import httpx
 
-URL_API = os.getenv("URL_API", "http://localhost:8117").rstrip("/")
+URL_API = (os.getenv("URL_API") or os.getenv("API_BASE_URL") or "http://localhost:8117").rstrip("/")
+if not URL_API.startswith("http://") and not URL_API.startswith("https://"):
+    URL_API = f"https://{URL_API}"
 COOKIE_SESION = "mapa_sid"
 
 # { sid: { "token", "username", "email", "roles", "puede_escribir", "es_admin" } }
